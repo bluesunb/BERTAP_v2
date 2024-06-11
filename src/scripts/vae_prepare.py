@@ -76,6 +76,7 @@ def prepare_config_dataset(env_name: str,
     train_config = TrainConfig(exp_name=f'BERTAP_VAE-{get_now_str()}',
                                batch_size=batch_size,
                                n_epochs=n_epochs,
+                               learning_rate=8e-4,
                                grad_norm_clip=1.0,
                                betas=(0.9, 0.95),
                                weight_decay=1e-1)

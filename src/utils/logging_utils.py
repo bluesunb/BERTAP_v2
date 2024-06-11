@@ -195,5 +195,5 @@ def compare_recons(logger: Logger,
     plt.tight_layout()
     img = get_canvas_image(canvas)
     plt.close(fig)
-    logger.log_arrays({"Reconstruction": img}, step=global_step)
+    logger.log_arrays({"Reconstruction_img": img}, step=global_step)
     

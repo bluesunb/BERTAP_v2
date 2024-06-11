@@ -46,7 +46,7 @@ def calc_recon_loss(config: ModelConfig, batch: jp.ndarray, recon: jp.ndarray):
             "act_loss": act_loss,
             "term_loss": term_loss,
             "trns_loss_map": diff[..., :-1],
-            "term_loss_img": term_diff,
+            "term_loss_map": term_diff,
             "loss": loss}
     
     return loss, info
@@ -116,8 +116,7 @@ def train_vae(state: TrainState,
     global_step = flax.jax_utils.unreplicate(state.step)
 
     for epoch in range(n_epochs):
-        # pbar = tqdm(range(loader_size), desc=f"Epoch[{epoch + 1}/{n_epochs}]", ncols=120)
-        pbar = tqdm(range(21), desc=f"Epoch[{epoch + 1}/{n_epochs}]", ncols=120)
+        pbar = tqdm(range(loader_size), desc=f"Epoch[{epoch + 1}/{n_epochs}]", ncols=120)
         for step in pbar:
             batch = sample_batch_fn(pmap=False)     # pad_shard_unpad will handle the sharding
             rng, device_rng = jax.random.split(rng)
@@ -247,7 +246,7 @@ if __name__ == "__main__":
     pmap = True
     log_interval = 20
     save_interval = 2000
-    use_wandb = False
+    use_wandb = True
     kwargs = {
         "model": {},
         "dataset": {},
@@ -256,8 +255,8 @@ if __name__ == "__main__":
 
     if pmap:
         main(model_def, env_name,
-             # seq_len=64, latent_step=4, batch_size=512 * 4,
-             seq_len=64, latent_step=4, batch_size=32,
+             seq_len=64, latent_step=4, batch_size=512 * 4,
+            #  seq_len=64, latent_step=4, batch_size=32,
              n_epochs=12, log_interval=log_interval, save_interval=save_interval, use_wandb=use_wandb, **kwargs)
         
     else:
