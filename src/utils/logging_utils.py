@@ -114,7 +114,7 @@ def get_now_str():
 
 
 def reduce_array(arr: jp.ndarray, reduce: int | Sequence[int] | str = 0):
-    if arr.ndim > 2:
+    if arr.ndim > 3:
         if isinstance(reduce, int):
             reduce = (reduce, )
         if isinstance(reduce, Sequence):
@@ -201,5 +201,5 @@ def compare_recons(logger: Logger,
     plt.tight_layout()
     img = get_canvas_image(canvas)
     plt.close(fig)
-    logger.log_arrays({"Reconstruction_img": img}, step=global_step)
+    logger.log_arrays({"Reconstruction_arr": img}, step=global_step)
     

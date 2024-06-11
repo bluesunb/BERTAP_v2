@@ -113,11 +113,13 @@ def train_vae(state: TrainState,
         eval_batch = sample_batch_fn(pmap=False)    # pad_shard_unpad will handle the sharding
 
     loader_size = dataloader.size // configs.train_config.batch_size
+    loader_size = loader_size // 100
+    print('\33[031mLoader size modified!!!\33[0m')
     total_steps = n_epochs * loader_size
     global_step = flax.jax_utils.unreplicate(state.step)
 
     for epoch in range(n_epochs):
-        pbar = tqdm(range(loader_size // 100), desc=f"Epoch[{epoch + 1}/{n_epochs}]", ncols=120)
+        pbar = tqdm(range(loader_size), desc=f"Epoch[{epoch + 1}/{n_epochs}]", ncols=120)
         for step in pbar:
             batch = sample_batch_fn(pmap=False)     # pad_shard_unpad will handle the sharding
             rng, device_rng = jax.random.split(rng)
@@ -186,7 +188,7 @@ def main(model_def: type[VQVAE],
     # Eval batch ========
     eval_starts = np.arange(4) * dataloader.seq_len + 21 * 1000
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
-    eval_batch = jax.tree.map(lambda x: jp.repeat(x, n_devices, axis=0), eval_batch)
+    # eval_batch = jax.tree.map(lambda x: jp.repeat(x, n_devices, axis=0), eval_batch)
 
     # Scheduler & States ========
     total_steps = (dataloader.size // batch_size) * n_epochs
