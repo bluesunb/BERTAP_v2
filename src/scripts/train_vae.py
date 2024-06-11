@@ -98,6 +98,7 @@ def train_vae(state: TrainState,
               eval_batch: jp.ndarray = None,
               log_interval: int = -1,
               save_interval: int = -1,
+              eval_freq: int = 0,
               **kwargs) -> TrainState:
     
     batch_size = configs.train_config.batch_size
@@ -116,7 +117,7 @@ def train_vae(state: TrainState,
     global_step = flax.jax_utils.unreplicate(state.step)
 
     for epoch in range(n_epochs):
-        pbar = tqdm(range(loader_size), desc=f"Epoch[{epoch + 1}/{n_epochs}]", ncols=120)
+        pbar = tqdm(range(loader_size // 100), desc=f"Epoch[{epoch + 1}/{n_epochs}]", ncols=120)
         for step in pbar:
             batch = sample_batch_fn(pmap=False)     # pad_shard_unpad will handle the sharding
             rng, device_rng = jax.random.split(rng)
@@ -139,24 +140,25 @@ def train_vae(state: TrainState,
                 name = f"checkpoint-{str(epoch).zfill(3)}-{str(global_step).zfill(4)}"
                 save_state(state, configs.train_config.save_dir / name, global_step)
 
-        rng, device_rng = jax.random.split(rng)
-        device_rng = shard_prng_key(device_rng)
-        eval_recon, eval_info = eval_step_fn(state, eval_batch, device_rng)
-        eval_recon = flax.jax_utils.unreplicate(eval_recon)
-        eval_info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(eval_info, sep='/'))
+            if eval_freq > 0 and (step + 1) % (loader_size // eval_freq) == 0:
+                rng, device_rng = jax.random.split(rng)
+                device_rng = shard_prng_key(device_rng)
+                eval_recon, eval_info = eval_step_fn(state, eval_batch, device_rng)
+                eval_recon = flax.jax_utils.unreplicate(eval_recon)
+                eval_info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(eval_info, sep='/'))
 
-        if log_interval > 0:
-            compare_recons(
-                logger=logger,
-                env=render_env,
-                origs=normalizer.denormalize_concat(jax.device_get(eval_batch['traj_seq']), keys=denorm_keys, splits=splits),
-                recons=normalizer.denormalize_concat(jax.device_get(eval_recon), keys=denorm_keys, splits=splits),
-                global_step=global_step,
-                quantized=eval_info["enc_vq/indices"][:4],
-                goal_conditioned=configs.model_config.goal_conditional
-            )
+                compare_recons(
+                    logger=logger,
+                    env=render_env,
+                    origs=normalizer.denormalize_concat(jax.device_get(eval_batch['traj_seq']), keys=denorm_keys, splits=splits),
+                    recons=normalizer.denormalize_concat(jax.device_get(eval_recon), keys=denorm_keys, splits=splits),
+                    goal_dim=configs.model_config.goal_input_dim,
+                    global_step=global_step,
+                    quantized=eval_info["enc_vq/indices"][:4],
+                    goal_conditioned=configs.model_config.goal_conditional
+                )
 
-            logger.log(eval_info, global_step, prefix="Eval")
+                logger.log(eval_info, global_step, prefix="Eval")
 
     return state
 
@@ -169,6 +171,7 @@ def main(model_def: type[VQVAE],
          n_epochs: int,
          log_interval: int,
          save_interval: int,
+         eval_freq: int,
          use_wandb: bool = True,
          **kwargs):
     
@@ -181,10 +184,9 @@ def main(model_def: type[VQVAE],
     sample_batch_fn, (normalizer, splits) = vae_batch_sampler(dataloader, batch_size, normalize=True)
 
     # Eval batch ========
-    eval_starts = np.arange(4) * dataloader.seq_len + 21 * 100
+    eval_starts = np.arange(4) * dataloader.seq_len + 21 * 1000
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
     eval_batch = jax.tree.map(lambda x: jp.repeat(x, n_devices, axis=0), eval_batch)
-    # eval_batch = flax.jax_utils.replicate(eval_batch)
 
     # Scheduler & States ========
     total_steps = (dataloader.size // batch_size) * n_epochs
@@ -225,6 +227,7 @@ def main(model_def: type[VQVAE],
                       eval_batch=eval_batch,
                       log_interval=log_interval,
                       save_interval=save_interval,
+                      eval_freq=eval_freq,
                       normalizer=normalizer,
                       splits=splits)
     
@@ -246,7 +249,8 @@ if __name__ == "__main__":
     pmap = True
     log_interval = 20
     save_interval = 2000
-    use_wandb = True
+    eval_freq = 2
+    use_wandb = False
     kwargs = {
         "model": {},
         "dataset": {},
@@ -255,12 +259,11 @@ if __name__ == "__main__":
 
     if pmap:
         main(model_def, env_name,
-             seq_len=64, latent_step=4, batch_size=512 * 4,
-            #  seq_len=64, latent_step=4, batch_size=32,
-             n_epochs=12, log_interval=log_interval, save_interval=save_interval, use_wandb=use_wandb, **kwargs)
+             seq_len=64, latent_step=4, batch_size=256, n_epochs=12,
+             log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:
         with chex.fake_pmap_and_jit():
             main(model_def, env_name,
-                 seq_len=64, latent_step=4, batch_size=32,
-                 n_epochs=10, log_interval=log_interval, save_interval=save_interval, use_wandb=use_wandb, **kwargs)
+                 seq_len=64, latent_step=4, batch_size=32, n_epochs=10,
+                 log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)

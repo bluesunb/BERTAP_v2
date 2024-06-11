@@ -141,57 +141,63 @@ def compare_recons(logger: Logger,
                    env: GoalReachingAnt,
                    origs: np.ndarray,
                    recons: np.ndarray,
+                   goal_dim: int,
                    global_step: int,
                    quantized: np.ndarray = None,
-                   goal_conditioned: bool = False,
-                   hierarchical_goal: bool = False):
-    
+                   goal_conditioned: bool = False):
+
+    assert (not goal_conditioned or goal_dim > 0), "Goal conditioned but goal_dim not provided"
+
     n_paths = recons.shape[0]
     fig, axes = plt.subplots(2, n_paths, tight_layout=True)
     canvas = agg.FigureCanvasAgg(fig)
-    
+
+    if n_paths == 1:
+        axes = axes[:, None]
+
     for j in range(n_paths):
         new_xlim = np.array([np.inf, -np.inf])
         new_ylim = np.array([np.inf, -np.inf])
-        
+
         if quantized is not None:
             title = '\n'.join(' '.join(str(x) for x in quantized[j, i:i+8].astype(int)) for i in range(0, len(quantized[j]), 8))
-            axes[0, j].set_title(title)
-            
+            axes[0, j].set_title(title, fontsize=5.5)
+
         for i in range(2):
             ax: plt.Axes = axes[i, j]
             paths = origs if i == 0 else recons
-            obs_starts = 2 if goal_conditioned else 0
-            
-            goal = paths[j, 0, :4 if hierarchical_goal else 2]
+            obs_starts = goal_dim
+
+            # goal = paths[j, 0, :4 if hierarchical_goal else 2]
+            goal = paths[j, 0, goal_dim - 2:goal_dim] if goal_conditioned else None
             pos = paths[j, :, obs_starts: obs_starts + 2]
             mask = paths[j, :, -1] > 0.5
-            
+
             c = np.linspace(0, 1, len(pos))
             ax.scatter(pos[~mask][:, 0], pos[~mask][:, 1], s=10, c=c[~mask], alpha=0.5, zorder=1)   # plot positions
             if goal_conditioned:
                 ax.scatter(*goal, s=500, c='r', edgecolors='k', marker='*', alpha=0.8, zorder=3)    # plot goal
-                
+
             tmp_xlim = np.array(ax.get_xlim())
             tmp_ylim = np.array(ax.get_ylim())
             new_xlim = np.array([min(new_xlim[0], tmp_xlim[0]), max(new_xlim[1], tmp_xlim[1])])
             new_ylim = np.array([min(new_ylim[0], tmp_ylim[0]), max(new_ylim[1], tmp_ylim[1])])
-            
+
             env.draw(ax)
             x_lim = np.array(ax.get_xlim())
             y_lim = np.array(ax.get_ylim())
             u_x = (x_lim[1] - x_lim[0]) / 8
             u_y = (y_lim[1] - y_lim[0]) / 8
-            
+
             new_xlim = (new_xlim - x_lim[0]) / u_x
             new_ylim = (new_ylim - y_lim[0]) / u_y
             new_xlim = np.array([np.floor(new_xlim[0]), np.ceil(new_xlim[1])]) * u_x + x_lim[0]
             new_ylim = np.array([np.floor(new_ylim[0]), np.ceil(new_ylim[1])]) * u_y + y_lim[0]
-            
+
         for i in range(2):
             axes[i, j].set_xlim(new_xlim)
             axes[i, j].set_ylim(new_ylim)
-            
+
     plt.tight_layout()
     img = get_canvas_image(canvas)
     plt.close(fig)
