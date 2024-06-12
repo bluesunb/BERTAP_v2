@@ -30,10 +30,10 @@ def prepare_config_dataset(env_name: str,
                             seq_len=data_config.seq_len,
                             min_valid_len=data_config.min_valid_len,
                             terminal_key=data_config.terminal_key,
-                            goal_conditioned=False,
+                            goal_conditioned=data_config.goal_conditioned,
                             p_true_goal=1.0,
                             p_sub_goal=0.0,
-                            hierarchical_goal=False)
+                            hierarchical_goal=data_config.hierarchical_goal)
     
     obs_dim = dataset.obs_dim
     act_dim = dataset.act_dim
@@ -45,6 +45,7 @@ def prepare_config_dataset(env_name: str,
         observation_dim=obs_dim,
         action_dim=act_dim,
         goal_dim=goal_dim,
+        hierarchical_goal=data_config.hierarchical_goal,
 
         causal=True,
         emb_dim=512,
@@ -61,8 +62,8 @@ def prepare_config_dataset(env_name: str,
 
         seq_len=seq_len,
         latent_step=latent_step,
-        goal_conditional=False,     # NOT USED WARNING
-        multi_modal=False,          # NOT USED WARNING
+        goal_conditional=data_config.goal_conditioned,      # NOT USED WARNING
+        multi_modal=False,                                  # NOT USED WARNING
 
         pos_weight=1.0,
         action_weight=5.0,

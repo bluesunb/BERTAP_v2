@@ -146,7 +146,7 @@ def train_vae(state: TrainState,
                 rng, device_rng = jax.random.split(rng)
                 device_rng = shard_prng_key(device_rng)
                 eval_recon, eval_info = eval_step_fn(state, eval_batch, device_rng)
-                eval_recon = flax.jax_utils.unreplicate(eval_recon)
+                eval_recon = eval_recon.reshape(eval_recon.shape[0] * eval_recon.shape[1], *eval_recon.shape[2:])
                 eval_info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(eval_info, sep='/'))
 
                 compare_recons(
@@ -194,7 +194,7 @@ def main(model_def: type[VQVAE],
     total_steps = (dataloader.size // batch_size) * n_epochs
     scheduler = optax.cosine_onecycle_schedule(transition_steps=total_steps,
                                                peak_value=configs.train_config.learning_rate,
-                                               pct_start=0.1,
+                                               pct_start=0.15,
                                                div_factor=50.0,
                                                final_div_factor=200)
     
@@ -255,13 +255,13 @@ if __name__ == "__main__":
     use_wandb = False
     kwargs = {
         "model": {},
-        "dataset": {},
+        "dataset": {"goal_conditioned": True, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
         "train": {}
     }
 
     if pmap:
         main(model_def, env_name,
-             seq_len=64, latent_step=4, batch_size=256, n_epochs=12,
+             seq_len=64, latent_step=4, batch_size=256, n_epochs=10,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:

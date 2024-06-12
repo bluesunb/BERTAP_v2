@@ -125,6 +125,7 @@ class DatasetConfig(ConfigBase):
     terminal: bool = True       # Whether to use the terminal signal in the dataset
     p_true_goal: float = 1.0    # Probability of using the true goal in the dataset
     p_sub_goal: float = 0.0     # Probability of using a sub-goal in the dataset
+    goal_conditioned: bool = True   # Whether to use a goal-conditioned model
     hierarchical_goal: bool = False  # Whether to use a hierarchical goal space
 
 

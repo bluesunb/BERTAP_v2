@@ -149,7 +149,7 @@ def compare_recons(logger: Logger,
     assert (not goal_conditioned or goal_dim > 0), "Goal conditioned but goal_dim not provided"
 
     n_paths = recons.shape[0]
-    fig, axes = plt.subplots(2, n_paths, tight_layout=True)
+    fig, axes = plt.subplots(2, n_paths, figsize=(12, 6), tight_layout=True)
     canvas = agg.FigureCanvasAgg(fig)
 
     if n_paths == 1:
@@ -161,7 +161,7 @@ def compare_recons(logger: Logger,
 
         if quantized is not None:
             title = '\n'.join(' '.join(str(x) for x in quantized[j, i:i+8].astype(int)) for i in range(0, len(quantized[j]), 8))
-            axes[0, j].set_title(title, fontsize=5.5)
+            axes[0, j].set_title(title, fontsize=8)
 
         for i in range(2):
             ax: plt.Axes = axes[i, j]
