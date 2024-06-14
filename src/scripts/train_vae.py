@@ -1,4 +1,5 @@
 import pickle
+import flax.jax_utils
 import numpy as np
 import jax
 import jax.tree_util as jtr
@@ -114,8 +115,8 @@ def train_vae(state: TrainState,
         eval_batch = sample_batch_fn(pmap=False)    # pad_shard_unpad will handle the sharding
 
     loader_size = dataloader.size // configs.train_config.batch_size
-    if kwargs.get("loader_size", None) == "half":
-        loader_size //= 100
+    if kwargs.get("loader_size", 0) > 0:
+        loader_size //= kwargs["loader_size"]
         print('\33[031mLoader size modified!!!\33[0m')
     
     total_steps = n_epochs * loader_size
@@ -149,7 +150,7 @@ def train_vae(state: TrainState,
                 rng, device_rng = jax.random.split(rng)
                 device_rng = shard_prng_key(device_rng)
                 eval_recon, eval_info = eval_step_fn(state, eval_batch, device_rng)
-                eval_recon = eval_recon.reshape(eval_recon.shape[0] * eval_recon.shape[1], *eval_recon.shape[2:])
+                eval_recon = flax.jax_utils.unreplicate(eval_recon)
                 eval_info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(eval_info, sep='/'))
 
                 compare_recons(
@@ -191,7 +192,8 @@ def main(model_def: type[VQVAE],
     # Eval batch ========
     eval_starts = np.arange(4) * dataloader.seq_len + 20 * 100
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
-    eval_batch = jtr.tree_map(lambda x: np.repeat(x, n_devices, axis=0), eval_batch)
+    eval_batch = jtr.tree_map(lambda x: np.expand_dims(x, axis=0).repeat(n_devices, axis=0), eval_batch)
+    eval_batch = jtr.tree_map(lambda x: x.reshape(-1, *x.shape[2:]), eval_batch)
 
     # Scheduler & States ========
     total_steps = (dataloader.size // batch_size) * n_epochs
@@ -252,25 +254,27 @@ if __name__ == "__main__":
     env_name = "antmaze-large-play-v2"
     model_def = VQVAE
 
-    pmap = True
+    pmap = False
     log_interval = 20
     save_interval = 2000
     eval_freq = 2
-    use_wandb = True
+    use_wandb = False
     kwargs = {
         "model": {},
         "dataset": {"goal_conditioned": False, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
         "train": {},
-        # "loader_size": "half"
+        "loader_size": 7000
     }
 
     if pmap:
         main(model_def, env_name,
-             seq_len=64, latent_step=4, batch_size=512 * 4, n_epochs=8,
+             seq_len=64, latent_step=4, batch_size=256, n_epochs=8,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:
+        jax.config.update("jax_platform_name", "cpu")
+        chex.set_n_cpu_devices(4)
         with chex.fake_pmap_and_jit():
             main(model_def, env_name,
-                 seq_len=64, latent_step=4, batch_size=32, n_epochs=8,
+                 seq_len=64, latent_step=4, batch_size=64, n_epochs=8,
                  log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
