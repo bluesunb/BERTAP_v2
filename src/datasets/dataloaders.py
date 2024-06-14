@@ -1,4 +1,5 @@
 import jax
+import jax.tree_util as jtr
 import numpy as np
 from dataclasses import dataclass
 from src.datasets.dataset import Dataset, Data
@@ -94,7 +95,7 @@ class TrajDataLoader:
         if not self.goal_conditioned:
             batch["goals"] = np.zeros_like((batch_size, self.seq_len, self.goal_dim), dtype=np.float32)
             
-        batch = jax.tree.map(np.atleast_3d, batch)
+        batch = jtr.map(np.atleast_3d, batch)
         return batch
     
     
@@ -133,7 +134,7 @@ class AntDataLoader(TrajDataLoader):
         indices, invalid_mask = self._make_valid_indices(indices)
         batch = self.dataset.get_subset(indices)
         invalid_mask = np.atleast_3d(invalid_mask)
-        batch = jax.tree.map(lambda arr: arr * (1 - invalid_mask), batch)
+        batch = jtr.map(lambda arr: arr * (1 - invalid_mask), batch)
         batch_size = batch["observations"].shape[0]
         
         batch["dones_float"] = invalid_mask
@@ -154,7 +155,7 @@ class AntDataLoader(TrajDataLoader):
         else:
             batch["goals"] = np.zeros((batch_size, self.seq_len, self.goal_dim), dtype=np.float32)
             
-        batch = jax.tree.map(np.atleast_3d, {
+        batch = jtr.map(np.atleast_3d, {
             "observations": batch["observations"],
             "actions": batch["actions"],
             "dones_float": batch["dones_float"],

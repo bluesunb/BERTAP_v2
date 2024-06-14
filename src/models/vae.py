@@ -117,4 +117,4 @@ if __name__ == "__main__":
         return loss, (vq_info, updates)
     
     grads, (vq_info, updates) = jax.grad(loss_fn, has_aux=True)(variables, x, rng)
-    pp(jax.tree.map(lambda x: jp.linalg.norm(x).item(), grads))
+    pp(jtr.map(lambda x: jp.linalg.norm(x).item(), grads))

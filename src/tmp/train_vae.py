@@ -1,11 +1,7 @@
 import pickle
-import flax.jax_utils
-import flax.jax_utils
-import flax.jax_utils
-import flax.jax_utils
-import flax.jax_utils
 import numpy as np
 import jax, jax.numpy as jp
+import jax.tree_util as jtr
 import flax, optax
 from flax.training.common_utils import shard, shard_prng_key
 from flax.jax_utils import pad_shard_unpad
@@ -33,7 +29,7 @@ from typing import Dict, List, Tuple
 def calc_recon_loss(config: ModelConfig, batch: Batch, recon: Batch):
     splits = np.cumsum([config.goal_dim, 2, config.observation_dim - 2, config.action_dim])
     # diff = jp.mean((batch - recon) ** 2, axis=-0)
-    diffs = jax.tree.map(lambda v1, v2: (v1 - v2) ** 2, batch, recon)
+    diffs = jtr.map(lambda v1, v2: (v1 - v2) ** 2, batch, recon)
     # goal_diff, pos_diff, obs_diff, act_diff, _ = jp.split(diff, splits, axis=-1)
     
     if not config.goal_conditional:

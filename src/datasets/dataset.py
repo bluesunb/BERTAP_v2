@@ -1,4 +1,5 @@
 import jax
+import jax.tree_util as jtr
 import numpy as np
 from typing import Dict, List, Tuple
 
@@ -6,7 +7,7 @@ Data = Dict[str, np.ndarray]
 
 
 def get_size(data: Dict):
-    sizes = jax.tree.map(lambda arr: len(arr), data)
+    sizes = jtr.map(lambda arr: len(arr), data)
     return max(jax.tree.leaves(sizes))
 
 
@@ -28,10 +29,10 @@ class Dataset:
                 "rewards": rewards,
                 **extra_fields}
         
-        data = jax.tree.map(lambda x: np.atleast_3d(x[None])[0], data)  # Make sure all fields has its feature dimension
+        data = jtr.map(lambda x: np.atleast_3d(x[None])[0], data)  # Make sure all fields has its feature dimension
         
         if freeze:
-            jax.tree.map(lambda x: x.setflags(write=False), data)
+            jtr.map(lambda x: x.setflags(write=False), data)
             
         return cls(data)
     
@@ -43,7 +44,7 @@ class Dataset:
         return self.get_subset(index)
     
     def get_subset(self, index: np.ndarray) -> Data:
-        return jax.tree.map(lambda x: x[index], self._dict)
+        return jtr.map(lambda x: x[index], self._dict)
     
     def keys(self) -> List[str]:
         return list(self._dict.keys())
@@ -68,5 +69,5 @@ class Dataset:
             yield self.get_subset(np.array([i]))
             
     def __repr__(self):
-        key_shapes = jax.tree.map(lambda x: x.shape, self._dict)
+        key_shapes = jtr.map(lambda x: x.shape, self._dict)
         return f"Dataset({', '.join(f'{k}: {v}' for k, v in key_shapes.items())})"

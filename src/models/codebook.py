@@ -1,4 +1,5 @@
 import jax
+import jax.tree_util as jtr
 import jax.numpy as jp
 import flax.linen as nn
 import optax
@@ -298,5 +299,5 @@ if __name__ == "__main__":
     pp(grad1)
     pp(grad2)
 
-    pp(jax.tree.map(jp.linalg.norm, grad1))
-    pp(jax.tree.map(jp.linalg.norm, grad2))
+    pp(jtr.map(jp.linalg.norm, grad1))
+    pp(jtr.map(jp.linalg.norm, grad2))

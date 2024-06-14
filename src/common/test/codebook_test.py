@@ -1,4 +1,5 @@
 import jax
+import jax.tree_util as jtr
 import jax.numpy as jp
 import flax.linen as nn
 import optax
@@ -61,5 +62,5 @@ if __name__ == "__main__":
 
         loss, grad = grad_fn(param, model, x, rngs={'gumbel': context_rng})
         print(f"{model.model_def.__name__} loss: {loss}")
-        pp(jax.tree.map(jp.linalg.norm, grad))
+        pp(jtr.map(jp.linalg.norm, grad))
         print(f'{time() - st:=^20.4f}')

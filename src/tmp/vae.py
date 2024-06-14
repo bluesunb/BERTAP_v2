@@ -1,11 +1,12 @@
 import jax
+import jax.tree_util as jtr
 import jax.numpy as jp
 import flax.linen as nn
 
 from src.common.configs import ModelConfig
 from src.tmp.dataloaders import Batch, init_batch
 from src.datasets.dataset import Data
-from src.common.codebook import VectorQuantizer, VQMovingAvg
+from src.models.codebook import VectorQuantizer, VQMovingAvg
 from src.models.transformer import TransformerModule
 
 from collections import namedtuple
@@ -143,11 +144,11 @@ if __name__ == "__main__":
         (recon, vq_info), updates = model.apply(params, x, train=True,
                                                 rngs=make_rngs(rng, model_keys), mutable=['vq_stats'])
         # loss = optax.l2_loss(x, recon).mean()
-        # loss = jax.tree.map(lambda v1, v2: optax.l2_loss(v1, v2).mean(), x, recon)
-        loss = jax.tree.map(lambda v1, v2: optax.l2_loss(v1, v2).mean(), x, recon)
+        # loss = jtr.map(lambda v1, v2: optax.l2_loss(v1, v2).mean(), x, recon)
+        loss = jtr.map(lambda v1, v2: optax.l2_loss(v1, v2).mean(), x, recon)
         loss = sum(loss.values()) / len(loss)
         loss += vq_info['vq_loss']
         return loss, (vq_info, updates)
     
     grads, (vq_info, updates) = jax.grad(loss_fn, has_aux=True)(variables, batch, rng)
-    pp(jax.tree.map(lambda x: jp.linalg.norm(x).item(), grads))
+    pp(jtr.map(lambda x: jp.linalg.norm(x).item(), grads))
