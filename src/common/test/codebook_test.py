@@ -5,7 +5,7 @@ import optax
 
 from boxprint import bprint
 
-from src.common.codebook import (
+from src.models.codebook import (
     VectorQuantizer,
     VQMovingAvg,
     VQGumbel,

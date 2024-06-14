@@ -4,7 +4,7 @@ import flax.linen as nn
 from src.common.configs import ModelConfig
 # from src.datasets import Batch
 from src.datasets.dataset import Data
-from src.common.codebook import VectorQuantizer, VQMovingAvg
+from src.models.codebook import VectorQuantizer, VQMovingAvg
 from src.models.transformer import TransformerModule
 
 EPSILON = 1e-12

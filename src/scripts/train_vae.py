@@ -81,8 +81,8 @@ def eval_step(state: TrainState, batch: jp.ndarray, rng: jp.ndarray, config: Tot
     
     recon = recon.at[..., -1].set(jax.nn.sigmoid(recon[..., -1]) > 0.5)
     
-    info.update({"loss": loss, **vq_info})
     info = jax.lax.pmean(info, axis_name=pmap_axis)
+    info.update({"loss": loss, **vq_info})
     return recon, info
 
 
@@ -189,7 +189,7 @@ def main(model_def: type[VQVAE],
     # Eval batch ========
     eval_starts = np.arange(4) * dataloader.seq_len + 20 * 100
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
-    eval_batch_unnorm = vae_batch_sampler(dataloader, batch_size, normalize=False)[0](starts=eval_starts, pmap=False)
+    eval_batch = np.expand_dims(eval_batch, axis=0).repeat(0, axis=n_devices)
     # eval_batch = jax.tree.map(lambda x: jp.repeat(x, n_devices, axis=0), eval_batch)
 
     # Scheduler & States ========
@@ -258,18 +258,18 @@ if __name__ == "__main__":
     use_wandb = False
     kwargs = {
         "model": {},
-        "dataset": {"goal_conditioned": True, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
+        "dataset": {"goal_conditioned": False, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
         "train": {},
         "loader_size": "half"
     }
 
     if pmap:
         main(model_def, env_name,
-             seq_len=64, latent_step=4, batch_size=256, n_epochs=10,
+             seq_len=64, latent_step=4, batch_size=256, n_epochs=8,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:
         with chex.fake_pmap_and_jit():
             main(model_def, env_name,
-                 seq_len=64, latent_step=4, batch_size=32, n_epochs=10,
+                 seq_len=64, latent_step=4, batch_size=32, n_epochs=8,
                  log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
