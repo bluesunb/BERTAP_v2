@@ -191,8 +191,7 @@ def main(model_def: type[VQVAE],
     # Eval batch ========
     eval_starts = np.arange(4) * dataloader.seq_len + 20 * 100
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
-    eval_batch = jtr.tree_map(lambda x: jp.expand_dims(x, axis=0).repeat(0, axis=n_devices), eval_batch)
-    # eval_batch = jtr.tree_map(lambda x: jp.repeat(x, n_devices, axis=0), eval_batch)
+    eval_batch = jtr.tree_map(lambda x: np.repeat(x, n_devices, axis=0), eval_batch)
 
     # Scheduler & States ========
     total_steps = (dataloader.size // batch_size) * n_epochs
