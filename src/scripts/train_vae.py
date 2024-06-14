@@ -192,7 +192,7 @@ def main(model_def: type[VQVAE],
     eval_starts = np.arange(4) * dataloader.seq_len + 20 * 100
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
     eval_batch = jtr.tree_map(lambda x: jp.expand_dims(x, axis=0).repeat(0, axis=n_devices), eval_batch)
-    # eval_batch = jtr.map(lambda x: jp.repeat(x, n_devices, axis=0), eval_batch)
+    # eval_batch = jtr.tree_map(lambda x: jp.repeat(x, n_devices, axis=0), eval_batch)
 
     # Scheduler & States ========
     total_steps = (dataloader.size // batch_size) * n_epochs
@@ -257,17 +257,17 @@ if __name__ == "__main__":
     log_interval = 20
     save_interval = 2000
     eval_freq = 2
-    use_wandb = False
+    use_wandb = True
     kwargs = {
         "model": {},
         "dataset": {"goal_conditioned": False, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
         "train": {},
-        "loader_size": "half"
+        # "loader_size": "half"
     }
 
     if pmap:
         main(model_def, env_name,
-             seq_len=64, latent_step=4, batch_size=256, n_epochs=8,
+             seq_len=64, latent_step=4, batch_size=512 * 4, n_epochs=8,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:

@@ -144,11 +144,11 @@ if __name__ == "__main__":
         (recon, vq_info), updates = model.apply(params, x, train=True,
                                                 rngs=make_rngs(rng, model_keys), mutable=['vq_stats'])
         # loss = optax.l2_loss(x, recon).mean()
-        # loss = jtr.map(lambda v1, v2: optax.l2_loss(v1, v2).mean(), x, recon)
-        loss = jtr.map(lambda v1, v2: optax.l2_loss(v1, v2).mean(), x, recon)
+        # loss = jtr.tree_map(lambda v1, v2: optax.l2_loss(v1, v2).mean(), x, recon)
+        loss = jtr.tree_map(lambda v1, v2: optax.l2_loss(v1, v2).mean(), x, recon)
         loss = sum(loss.values()) / len(loss)
         loss += vq_info['vq_loss']
         return loss, (vq_info, updates)
     
     grads, (vq_info, updates) = jax.grad(loss_fn, has_aux=True)(variables, batch, rng)
-    pp(jtr.map(lambda x: jp.linalg.norm(x).item(), grads))
+    pp(jtr.tree_map(lambda x: jp.linalg.norm(x).item(), grads))

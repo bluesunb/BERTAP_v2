@@ -105,7 +105,7 @@ class TrajDataLoader:
         if not self.goal_conditioned:
             batch["goals"] = np.zeros_like((batch_size, self.seq_len, self.goal_dim), dtype=np.float32)
             
-        batch = jtr.map(np.atleast_3d, batch)
+        batch = jtr.tree_map(np.atleast_3d, batch)
         return batch
     
     
@@ -143,7 +143,7 @@ class AntDataLoader(TrajDataLoader):
         indices, invalid_mask = self._make_valid_indices(indices)
         batch = self.dataset.get_subset(indices)
         invalid_mask = np.atleast_3d(invalid_mask)
-        batch = jtr.map(lambda arr: arr * (1 - invalid_mask), batch)
+        batch = jtr.tree_map(lambda arr: arr * (1 - invalid_mask), batch)
         batch_size = batch["observations"].shape[0]
         
         batch["dones_float"] = invalid_mask
@@ -171,7 +171,7 @@ class AntDataLoader(TrajDataLoader):
                       masks=batch["masks"],
                       goals=batch["goals"])
         
-        return jtr.map(np.atleast_3d, batch)
+        return jtr.tree_map(np.atleast_3d, batch)
     
     
 @dataclass

@@ -299,5 +299,5 @@ if __name__ == "__main__":
     pp(grad1)
     pp(grad2)
 
-    pp(jtr.map(jp.linalg.norm, grad1))
-    pp(jtr.map(jp.linalg.norm, grad2))
+    pp(jtr.tree_map(jp.linalg.norm, grad1))
+    pp(jtr.tree_map(jp.linalg.norm, grad2))
