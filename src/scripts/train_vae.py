@@ -1,5 +1,4 @@
 import pickle
-import flax.traverse_util
 import numpy as np
 import jax, jax.numpy as jp
 import flax, optax
@@ -113,8 +112,10 @@ def train_vae(state: TrainState,
         eval_batch = sample_batch_fn(pmap=False)    # pad_shard_unpad will handle the sharding
 
     loader_size = dataloader.size // configs.train_config.batch_size
-    loader_size = loader_size // 100
-    print('\33[031mLoader size modified!!!\33[0m')
+    if kwargs.get("loader_size", None) == "half":
+        loader_size //= 100
+        print('\33[031mLoader size modified!!!\33[0m')
+    
     total_steps = n_epochs * loader_size
     global_step = flax.jax_utils.unreplicate(state.step)
 
@@ -186,8 +187,9 @@ def main(model_def: type[VQVAE],
     sample_batch_fn, (normalizer, splits) = vae_batch_sampler(dataloader, batch_size, normalize=True)
 
     # Eval batch ========
-    eval_starts = np.arange(4) * dataloader.seq_len + 21 * 1000
+    eval_starts = np.arange(4) * dataloader.seq_len + 20 * 100
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
+    eval_batch_unnorm = vae_batch_sampler(dataloader, batch_size, normalize=False)[0](starts=eval_starts, pmap=False)
     # eval_batch = jax.tree.map(lambda x: jp.repeat(x, n_devices, axis=0), eval_batch)
 
     # Scheduler & States ========
@@ -231,7 +233,8 @@ def main(model_def: type[VQVAE],
                       save_interval=save_interval,
                       eval_freq=eval_freq,
                       normalizer=normalizer,
-                      splits=splits)
+                      splits=splits,
+                      **kwargs)
     
     # Save final model ========
     save_state(state, configs.train_config.save_dir / "checkpoint-final", total_steps)
@@ -256,7 +259,8 @@ if __name__ == "__main__":
     kwargs = {
         "model": {},
         "dataset": {"goal_conditioned": True, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
-        "train": {}
+        "train": {},
+        "loader_size": "half"
     }
 
     if pmap:

@@ -149,7 +149,8 @@ def compare_recons(logger: Logger,
     assert (not goal_conditioned or goal_dim > 0), "Goal conditioned but goal_dim not provided"
 
     n_paths = recons.shape[0]
-    fig, axes = plt.subplots(2, n_paths, figsize=(12, 6), tight_layout=True)
+    figsize = np.round(np.array([2, 1]) * (n_paths + 2)).astype(int).tolist()
+    fig, axes = plt.subplots(2, n_paths, figsize=figsize, tight_layout=True)
     canvas = agg.FigureCanvasAgg(fig)
 
     if n_paths == 1:

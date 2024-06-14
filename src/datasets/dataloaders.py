@@ -112,7 +112,8 @@ class AntDataLoader(TrajDataLoader):
             assert self.p_true_goal + self.p_sub_goal == 1.0
             
     def _sample_sub_goal_ids(self, indices: np.ndarray):
-        near_term_ids = np.searchsorted(self.terminal_ids, indices[:, 0])
+        near_term_ids = np.searchsorted(self.terminal_ids, indices[:, 0])   # fine nearest terminals from start of the episode
+        near_term_ids = self.terminal_ids[near_term_ids]
         sub_goal_ids = batched_randint(starts=indices[:, -1], ends=near_term_ids, size=1)   # goals within the episode
         return sub_goal_ids
     
