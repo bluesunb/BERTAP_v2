@@ -1,6 +1,8 @@
 import pickle
 import numpy as np
-import jax, jax.numpy as jp
+import jax
+import jax.tree_util as jtr
+import jax.numpy as jp
 import flax, optax
 from flax.training.common_utils import shard, shard_prng_key
 from flax.jax_utils import pad_shard_unpad
@@ -189,7 +191,7 @@ def main(model_def: type[VQVAE],
     # Eval batch ========
     eval_starts = np.arange(4) * dataloader.seq_len + 20 * 100
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
-    eval_batch = np.expand_dims(eval_batch, axis=0).repeat(0, axis=n_devices)
+    eval_batch = jtr.tree_map(lambda x: jp.expand_dims(x, axis=0).repeat(0, axis=n_devices), eval_batch)
     # eval_batch = jax.tree.map(lambda x: jp.repeat(x, n_devices, axis=0), eval_batch)
 
     # Scheduler & States ========
