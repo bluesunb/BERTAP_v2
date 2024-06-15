@@ -199,7 +199,7 @@ def main(model_def: type[VQVAE],
     total_steps = (dataloader.size // batch_size) * n_epochs
     scheduler = optax.cosine_onecycle_schedule(transition_steps=total_steps,
                                                peak_value=configs.train_config.learning_rate,
-                                               pct_start=0.15,
+                                               pct_start=0.10,
                                                div_factor=50.0,
                                                final_div_factor=200)
     
@@ -259,16 +259,21 @@ if __name__ == "__main__":
     save_interval = 2000
     eval_freq = 2
     use_wandb = True
+    test = False
+
+    loader_size = 1000 if test else 0
+    batch_size = 256 if test else 512 * 4
+        
     kwargs = {
         "model": {},
         "dataset": {"goal_conditioned": True, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
         "train": {},
-        # "loader_size": 7000
+        "loader_size": loader_size
     }
 
     if pmap:
         main(model_def, env_name,
-             seq_len=64, latent_step=4, batch_size=512 * 4, n_epochs=9,
+             seq_len=64, latent_step=4, batch_size=batch_size, n_epochs=12,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:
