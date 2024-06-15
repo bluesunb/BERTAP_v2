@@ -259,15 +259,15 @@ if __name__ == "__main__":
     log_interval = 20
     save_interval = 2000
     eval_freq = 2
-    use_wandb = True
-    test = True
+    use_wandb = False
+    test = False
 
     loader_size = 1000 if test else 0
     batch_size = 256 if test else 512 * 4
         
     kwargs = {
         "model": {},
-        "dataset": {"goal_conditioned": True, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
+        "dataset": {"goal_conditioned": True, "hierarchical_goal": True, "p_true_goal": 1.0, "p_sub_goal": 0.0},
         "train": {},
         "loader_size": loader_size
     }
