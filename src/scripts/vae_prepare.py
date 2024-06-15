@@ -31,8 +31,8 @@ def prepare_config_dataset(env_name: str,
                             min_valid_len=data_config.min_valid_len,
                             terminal_key=data_config.terminal_key,
                             goal_conditioned=data_config.goal_conditioned,
-                            p_true_goal=1.0,
-                            p_sub_goal=0.0,
+                            p_true_goal=data_config.p_true_goal,
+                            p_sub_goal=data_config.p_sub_goal,
                             hierarchical_goal=data_config.hierarchical_goal)
     
     obs_dim = dataset.obs_dim
@@ -51,6 +51,7 @@ def prepare_config_dataset(env_name: str,
         emb_dim=512,
         n_heads=8,
         n_layers=4,
+        ff_dim=512 * 4,
         attn_pdrop=0.1,
         resid_pdrop=0.1,
         emb_pdrop=0.1,
