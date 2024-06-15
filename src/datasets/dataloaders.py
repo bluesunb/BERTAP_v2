@@ -168,6 +168,7 @@ class AntDataLoader(TrajDataLoader):
 @dataclass
 class AntMLMDataLoader(AntDataLoader):
     def __post_init__(self):
+        assert self.goal_conditioned, "AntMLMDataLoader must be goal conditioned"
         return super().__post_init__()
     
     def sample(self, batch_size: int = 1, starts: np.ndarray = None):
@@ -184,18 +185,34 @@ class AntMLMDataLoader(AntDataLoader):
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
     from src.datasets.d4rl_utils import make_env, get_dataset
+    from src.utils.ant_viz import GoalReachingAnt
+    
     env_name = 'antmaze-large-play-v2'
     env = make_env(env_name)
+    render_env = GoalReachingAnt(env_name)
     dataset = get_dataset(env, env_name)
     ant_loader = AntDataLoader(dataset=dataset,
                                seq_len=64,
-                               min_valid_len=3,
+                               min_valid_len=64,
                                terminal_key='dones_float',
                                goal_conditioned=True,
                                p_true_goal=0.8,
                                p_sub_goal=0.2,
                                hierarchical_goal=False)
 
-    batch_size = 1000
-    batch = ant_loader.sample(batch_size)
+    def check(i):
+        idx = np.arange(ant_loader.terminal_ids[i], ant_loader.terminal_ids[i + 1]) + 1
+        batch = ant_loader.dataset.get_subset(idx)
+        render_env.draw()
+        c = np.linspace(0, 1, len(batch["observations"]))
+        pos = batch["observations"][:, :2]
+        goal = batch["goals"][:, :2]
+        
+        plt.scatter(*pos.T, c=c, s=10, alpha=0.5, zorder=1)
+        plt.scatter(*goal.T, c='r', s=100, edgecolors='k', marker='*', alpha=0.8, zorder=2)
+        plt.show(block=True)
+        
+    check(0)
+    check(1)

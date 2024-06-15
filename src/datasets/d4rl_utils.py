@@ -3,6 +3,8 @@ import gym
 import numpy as np
 from src.datasets.dataset import Dataset
 
+__convolve = np.vectorize(np.convolve, excluded=[1, "mode"], signature="(a)->(b)")
+
 
 def make_env(env_name: str):
     wrapped_env = gym.make(env_name)
@@ -79,7 +81,7 @@ def get_dataset(env: gym.Env,
         
         dataset = new_dataset
         
-    def antmaze_preprocess(dataset):
+    def antmaze_preprocess(dataset, fit_goal: bool = True):
         print(f"==== [Fixing terminal for AntMaze] ====")
         dones_float = np.zeros_like(dataset["rewards"])
         dataset["terminals"][:] = 0
@@ -91,6 +93,14 @@ def get_dataset(env: gym.Env,
         ep_changed = ep_changed.astype(np.float32)
         dones_float[:-1] = ep_changed
         dones_float[-1] = 1
+        
+        if fit_goal and "goals" in dataset:
+            k = np.ones(10) / 10
+            mean_obs = __convolve(dataset["observations"][..., :2].T, k, mode="full").T[: len(dataset["observations"])]
+            mean_obs = (mean_obs * dones_float[:, None])[dones_float == 1]
+            near_term_ids = np.searchsorted(np.where(dones_float)[0], np.arange(len(dones_float)))
+            dataset["goals"] = mean_obs[near_term_ids]
+        
         return dones_float, dataset
     
     if "antmaze" in env_name:
@@ -148,3 +158,9 @@ class EpisodeMonitor(gym.ActionWrapper):
     def reset(self):
         self._reset_stats()
         return self.env.reset()
+    
+    
+if __name__ == "__main__":
+    import d4rl
+    env_name = "antmaze-large-play-v2"
+    dataset = get_dataset(make_env(env_name), env_name)

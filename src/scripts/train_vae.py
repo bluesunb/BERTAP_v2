@@ -190,7 +190,7 @@ def main(model_def: type[VQVAE],
     sample_batch_fn, (normalizer, splits) = vae_batch_sampler(dataloader, batch_size, normalize=True)
 
     # Eval batch ========
-    eval_starts = np.arange(4) * dataloader.seq_len + 20 * 100
+    eval_starts = np.arange(4) * dataloader.seq_len + 21 * 1000
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
     eval_batch = jtr.tree_map(lambda x: np.expand_dims(x, axis=0).repeat(n_devices, axis=0), eval_batch)
     eval_batch = jtr.tree_map(lambda x: x.reshape(-1, *x.shape[2:]), eval_batch)
