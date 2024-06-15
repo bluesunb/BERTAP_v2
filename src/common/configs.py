@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from src import BASE_DIR
 from src.common.config_base import ConfigBase
+from typing import Literal
 
 
 @dataclass
@@ -89,10 +90,10 @@ class ModelConfig(ConfigBase):
     def goal_conditioned(self) -> bool:
         return self.enc_gc or self.dec_gc
     
-    @property
-    def goal_input_dim(self) -> int:
-        """Dimension of the goal as model input"""
-        return self.goal_dim * (1 + self.hierarchical_goal)
+    # @property
+    # def goal_input_dim(self) -> int:
+    #     """Dimension of the goal as model input"""
+    #     return self.goal_dim * (1 + self.hierarchical_goal)
     
     @property
     def vocab_size(self) -> int:
@@ -139,7 +140,7 @@ class TrainConfig(ConfigBase):
     grad_norm_clip: float = 1.0
     betas: tuple = (0.9, 0.95)
     weight_decay: float = 0.0
-    scheduler_name: str = 'constant'
+    scheduler_name: Literal["constant", "onecycle", "bertwarmup"] = "constant"
     scheduler_params: dict = None
 
     @property

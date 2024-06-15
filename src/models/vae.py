@@ -41,8 +41,8 @@ class Decoder(nn.Module):
         latent_seq = TransformerModule(self.config, update_pos_emb=True)(latent_seq, mask=None, train=train)
         latent_seq = nn.LayerNorm(epsilon=EPSILON)(latent_seq)
         
-        traj_rec = nn.Dense(self.config.transition_dim + self.config.goal_input_dim, kernel_init=init_normal)(latent_seq)
-        traj_rec = traj_rec.at[..., :self.config.goal_input_dim + self.config.observation_dim].add(condition)
+        traj_rec = nn.Dense(self.config.transition_dim, kernel_init=init_normal)(latent_seq)
+        traj_rec = traj_rec.at[..., :self.config.goal_dim + self.config.observation_dim].add(condition)
         return traj_rec
 
 
@@ -75,7 +75,7 @@ class VQVAE(nn.Module):
     
     def __call__(self, traj_seq: jp.ndarray, masks: jp.ndarray, train: bool = True):
         train = nn.merge_param('training', self.training, train)
-        condition = traj_seq[:, 0, :self.config.goal_input_dim + self.config.observation_dim]
+        condition = traj_seq[:, 0, :self.config.goal_dim + self.config.observation_dim]
 
         traj_enc = self.encode(traj_seq, masks, train=train)
         quantized, vq_info = self.quantize(traj_enc, train=train)
@@ -98,9 +98,9 @@ if __name__ == "__main__":
     rng = jax.random.PRNGKey(0)
     rng_x, rng_goal = jax.random.split(rng, 2)
 
-    x = jax.random.uniform(rng_x, (1, 64, configs.model_config.transition_dim + configs.model_config.goal_input_dim), dtype=jp.float32)
+    x = jax.random.uniform(rng_x, (1, 64, configs.model_config.transition_dim), dtype=jp.float32)
 
-    print(x[..., :configs.model_config.goal_input_dim].mean())
+    print(x[..., :configs.model_config.goal_dim].mean())
 
     model_keys = ('vq', 'dropout')
     model = VQVAE(configs.model_config)

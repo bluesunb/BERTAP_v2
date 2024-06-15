@@ -198,21 +198,25 @@ if __name__ == "__main__":
                                min_valid_len=64,
                                terminal_key='dones_float',
                                goal_conditioned=True,
-                               p_true_goal=0.8,
-                               p_sub_goal=0.2,
+                               p_true_goal=0.0,
+                               p_sub_goal=0.1,
                                hierarchical_goal=False)
 
     def check(i):
-        idx = np.arange(ant_loader.terminal_ids[i], ant_loader.terminal_ids[i + 1]) + 1
-        batch = ant_loader.dataset.get_subset(idx)
+        # idx = np.arange(ant_loader.terminal_ids[i], ant_loader.terminal_ids[i + 1]) + 1
+        # batch = ant_loader.dataset.get_subset(idx)
+        start = ant_loader.terminal_ids[i] + 1
+        batch = ant_loader.sample(starts=np.array([start]))
         render_env.draw()
-        c = np.linspace(0, 1, len(batch["observations"]))
-        pos = batch["observations"][:, :2]
-        goal = batch["goals"][:, :2]
+        c = np.linspace(0, 1, batch["observations"].shape[-2])
+        pos = batch["observations"][..., :2]
+        goal = batch["goals"][..., :2]
         
         plt.scatter(*pos.T, c=c, s=10, alpha=0.5, zorder=1)
         plt.scatter(*goal.T, c='r', s=100, edgecolors='k', marker='*', alpha=0.8, zorder=2)
         plt.show(block=True)
         
-    check(0)
-    check(1)
+    check(20)
+    check(20)
+    check(30)
+    check(30)

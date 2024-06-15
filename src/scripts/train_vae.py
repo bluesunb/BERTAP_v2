@@ -158,7 +158,7 @@ def train_vae(state: TrainState,
                     env=render_env,
                     origs=normalizer.denormalize_concat(jax.device_get(eval_batch['traj_seq']), keys=denorm_keys, splits=splits),
                     recons=normalizer.denormalize_concat(jax.device_get(eval_recon), keys=denorm_keys, splits=splits),
-                    goal_dim=configs.model_config.goal_input_dim,
+                    goal_dim=configs.model_config.goal_dim,
                     global_step=global_step,
                     quantized=eval_info["enc_vq/indices"][:4],
                     goal_conditioned=configs.model_config.goal_conditional
@@ -260,7 +260,7 @@ if __name__ == "__main__":
     save_interval = 2000
     eval_freq = 2
     use_wandb = False
-    test = False
+    test = True
 
     loader_size = 1000 if test else 0
     batch_size = 256 if test else 512 * 4
