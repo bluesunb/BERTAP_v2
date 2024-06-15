@@ -187,7 +187,8 @@ def main(model_def: type[VQVAE],
     n_devices = jax.device_count()
 
     # Data sampler ========
-    sample_batch_fn, (normalizer, splits) = vae_batch_sampler(dataloader, batch_size, normalize=True)
+    sample_batch_fn, (normalizer, splits) = vae_batch_sampler(dataloader, batch_size, 
+                                                              normalize=True, hierarchical_goal=configs.data_config.hierarchical_goal)
 
     # Eval batch ========
     eval_starts = np.arange(4) * dataloader.seq_len + 21 * 1000
@@ -259,7 +260,7 @@ if __name__ == "__main__":
     save_interval = 2000
     eval_freq = 2
     use_wandb = True
-    test = False
+    test = True
 
     loader_size = 1000 if test else 0
     batch_size = 256 if test else 512 * 4

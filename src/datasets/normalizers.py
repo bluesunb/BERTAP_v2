@@ -4,7 +4,7 @@ from typing import Sequence, Dict, NamedTuple
 
 
 class Normalizer:
-    def __init__(self, dataset: Dataset, keys: Sequence[int] = None):
+    def __init__(self, dataset: Dataset, keys: Sequence[int] = None, **kwargs):
         self.mean: Dict[str, np.ndarray] = {}
         self.std: Dict[str, np.ndarray] = {}
         
@@ -13,6 +13,10 @@ class Normalizer:
             self.mean[key] = np.mean(dataset[key], axis=0)
             self.std[key] = np.std(dataset[key], axis=0)
             self.std[key][self.std[key] < 1e-6] = 1.0
+            
+        if kwargs.get('hierarchical_goal', False):
+            self.mean['goals'] = np.tile(self.mean['goals'], (2,))
+            self.std['goals'] = np.tile(self.std['goals'], (2,))
             
     def normalize(self, dataset: Dataset, keys: Sequence[str] = None) -> Dict[str, np.ndarray]:
         normalized_data = dataset.copy()
