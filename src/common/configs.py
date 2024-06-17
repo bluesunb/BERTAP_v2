@@ -35,7 +35,7 @@ class ModelConfig(ConfigBase):
     shift: int = 0              # Shift for the trajectory tokens, token=`shift` is token=0
     modify_prob: float = 0.15   # Probability of modifying the input sequence
     mask_prob: float = 0.7      # Probability of masking a token
-    replace_prob: float = 0.1   # Probability of replacing a token
+    random_prob: float = 0.1    # Probability of replacing a token to a random token
     delete_prob: float = 0.1    # Probability of deleting a token
 
     # Vector Quantization
@@ -184,3 +184,11 @@ class TotalConfigs:
         train_config = TrainConfig.load(path / 'train_config.pkl')
         config = cls(data_config, model_config, train_config)
         return config
+
+
+if __name__ == "__main__":
+    data_config = DatasetConfig(env_name='antmaze-large-play-v2')
+    model_config = ModelConfig(transition_dim=100, observation_dim=30, action_dim=10)
+    train_config = TrainConfig(exp_name='test')
+    configs = TotalConfigs(data_config, model_config, train_config)
+    configs.save(configs.train_config.save_dir)

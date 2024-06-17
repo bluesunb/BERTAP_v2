@@ -4,7 +4,7 @@ from flax.core import FrozenDict
 from pathlib import Path
 
 from enum import Enum
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Mapping
 
 from src import BASE_DIR
 
@@ -42,6 +42,7 @@ class ConfigBase:
         d = self.__dict__.copy()
         d.pop('project_root', None)
         d.pop('save_dir', None)
+        return FrozenDict(d)
 
     def save(self, save_path_name: Path):
         # save_name = save_name.split('.')[0]
@@ -69,7 +70,7 @@ class ConfigBase:
     @classmethod
     def load(cls, path: str | Path) -> "ConfigBase":
         config = pickle.load(open(path, 'rb'))
-        if isinstance(config, dict):
+        if isinstance(config, Mapping):
             return cls(**config)
         return cls(*config)
     
