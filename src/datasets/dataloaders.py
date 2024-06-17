@@ -173,6 +173,10 @@ class AntDataLoader(TrajDataLoader):
 class AntMLMDataLoader(AntDataLoader):
     def __post_init__(self):
         # assert self.goal_conditioned, "AntMLMDataLoader must be goal conditioned"
+        self.hierarchical_goal_orig = self.hierarchical_goal
+        self.goal_conditioned_orig = self.goal_conditioned
+        self.hierarchical_goal = True
+        self.goal_conditioned = True
         return super().__post_init__()
     
     def sample(self, batch_size: int = 1, starts: np.ndarray = None):
@@ -183,6 +187,14 @@ class AntMLMDataLoader(AntDataLoader):
         goals2 = batch2["goals"][..., 0, -self.goal_dim:]   # true goals
         nsp_labels = np.asarray(np.linalg.norm(goals1 - goals2, axis=-1) < 2.0, dtype=np.int32)
         
+        if not self.goal_conditioned_orig:
+            batch1["goals"] = np.zeros_like(batch1["goals"])
+            batch2["goals"] = np.zeros_like(batch2["goals"])
+            
+        if not self.hierarchical_goal_orig:
+            batch1["goals"] = batch1["goals"][..., -self.goal_dim // 2:]
+            batch2["goals"] = batch2["goals"][..., -self.goal_dim // 2:]
+            
         return batch1, batch2, nsp_labels
 
 

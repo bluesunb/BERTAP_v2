@@ -34,7 +34,7 @@ class TransformerEmbedding(nn.Module):
 
 
 class BertEmbedding(nn.Module):
-    n_traj_tokens: int
+    vocab_size: int
     max_seq_len: int
     emb_dim: int
     emb_pdrop: float
@@ -42,7 +42,7 @@ class BertEmbedding(nn.Module):
 
     @nn.compact
     def __call__(self, ids: jp.ndarray, type_ids: jp.ndarray, pos_ids: jp.ndarray, train: bool = True):
-        ids_emb = nn.Embed(self.n_traj_tokens, self.emb_dim, embedding_init=init_normal, name="ids_emb")(ids)
+        ids_emb = nn.Embed(self.vocab_size, self.emb_dim, embedding_init=init_normal, name="ids_emb")(ids)
         pos_emb = nn.Embed(self.max_seq_len, self.emb_dim, embedding_init=init_normal, name="pos_emb")(pos_ids)
         type_emb = nn.Embed(2, self.emb_dim, embedding_init=init_normal, name="type_emb")(type_ids)
 
@@ -127,9 +127,9 @@ class BertModule(nn.Module):
             pos_ids = jp.broadcast_to(pos_ids, ids.shape)
 
         if mask is None:
-            mask = jp.ones_like(ids)
+            mask = jp.ones_like(ids)[..., None]
 
-        out = BertEmbedding(self.config.n_traj_tokens,
+        out = BertEmbedding(self.config.vocab_size,
                             self.config.seq_len,
                             self.config.emb_dim,
                             self.config.emb_pdrop,
@@ -172,9 +172,9 @@ class VocabPredHead(nn.Module):
         if shared_embedding is not None:
             x = jp.dot(x, shared_embedding.T)
         else:
-            x = nn.Dense(self.config.n_traj_tokens, use_bias=False)(x)
+            x = nn.Dense(self.config.vocab_size, use_bias=False)(x)
         
-        bias = self.param("bias", nn.initializers.zeros, (self.config.n_traj_tokens,))
+        bias = self.param("bias", nn.initializers.zeros, (self.config.vocab_size,))
         bias = jp.asarray(bias, dtype=jp.float32)
         return x + bias
     
@@ -191,9 +191,9 @@ class BertWithHeads(nn.Module):
     @nn.compact
     def __call__(self,
                  input_ids: jp.ndarray,
-                 type_ids: jp.ndarray,
-                 pos_ids: jp.ndarray,
-                 mask: jp.ndarray,
+                 type_ids: jp.ndarray = None,
+                 pos_ids: jp.ndarray = None,
+                 mask: jp.ndarray = None,
                  train: bool = True):
         
         bert_out, pooling_out = BertModule(self.config, add_pooling_layer=True, name="bert")(input_ids, type_ids, pos_ids, mask, train)

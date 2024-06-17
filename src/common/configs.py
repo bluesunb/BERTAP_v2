@@ -28,10 +28,10 @@ class ModelConfig(ConfigBase):
 
     # BERT
     n_special_tokens: int = 4   # Number of special tokens for the BERT model
-    _pad_token: int = 0          # Token for padding
-    _cls_token: int = 1          # Token for the classification
-    _mask_token: int = 2         # Token for masking
-    _sep_token: int = 3          # Token for separating sequences
+    _cls_token: int = 0          # Token for the classification
+    _mask_token: int = 1         # Token for masking
+    _sep_token: int = 2          # Token for separating sequences
+    _pad_token: int = 3          # Token for padding
     shift: int = 0              # Shift for the trajectory tokens, token=`shift` is token=0
     modify_prob: float = 0.15   # Probability of modifying the input sequence
     mask_prob: float = 0.7      # Probability of masking a token
@@ -89,11 +89,6 @@ class ModelConfig(ConfigBase):
     @property
     def goal_conditioned(self) -> bool:
         return self.enc_gc or self.dec_gc
-    
-    # @property
-    # def goal_input_dim(self) -> int:
-    #     """Dimension of the goal as model input"""
-    #     return self.goal_dim * (1 + self.hierarchical_goal)
     
     @property
     def vocab_size(self) -> int:
@@ -182,6 +177,14 @@ class TotalConfigs:
         data_config = DatasetConfig.load(path / 'data_config.pkl')
         model_config = ModelConfig.load(path / 'model_config.pkl')
         train_config = TrainConfig.load(path / 'train_config.pkl')
+        config = cls(data_config, model_config, train_config)
+        return config
+
+    @classmethod
+    def load_from_txt(cls, path: Path) -> "TotalConfigs":
+        data_config = DatasetConfig.load_from_text(path / 'data_config.txt')
+        model_config = ModelConfig.load_from_text(path / 'model_config.txt')
+        train_config = TrainConfig.load_from_text(path / 'train_config.txt')
         config = cls(data_config, model_config, train_config)
         return config
 

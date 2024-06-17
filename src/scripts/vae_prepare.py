@@ -110,7 +110,7 @@ def prepare_states(model_def: type[VQVAE],
     
     tx = optimizer(scheduler)
 
-    input_dim = configs.model_config.transition_dim
+    input_dim = configs.model_confi
     sample_input = jp.empty((1, configs.data_config.seq_len, input_dim), dtype=jp.float32)
     masks = jp.ones((1, configs.data_config.seq_len, 1), dtype=jp.float32)
     state = make_state(make_rngs(rng, ('vq', 'dropout'), contain_params=True),

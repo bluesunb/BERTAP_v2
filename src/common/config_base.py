@@ -73,6 +73,27 @@ class ConfigBase:
         if isinstance(config, Mapping):
             return cls(**config)
         return cls(**config)
+
+    @classmethod
+    def load_from_text(cls, path: str | Path) -> "ConfigBase":
+        config_txt = open(path, 'r').read().split('\n')
+        config_txt = [line.split(': ') for line in filter(None, config_txt)]
+        config_txt = [(k.strip(), v.strip()) for k, v in config_txt]
+
+        cfg = {}
+        for k, v in config_txt:
+            if v.isdigit():
+                v = int(v)
+            elif v.replace('.', '', 1).isdigit():
+                v = float(v)
+            elif v in ['True', 'False']:
+                v = v == 'True'
+            elif v[0] in ['(', '['] and v[-1] in [')', ']']:
+                v = eval(v)
+            cfg[k] = v
+
+        cfg.pop("Config")
+        return cls(**cfg)
     
 
 if __name__ == "__main__":
