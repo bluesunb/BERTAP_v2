@@ -72,7 +72,7 @@ class ConfigBase:
         config = pickle.load(open(path, 'rb'))
         if isinstance(config, Mapping):
             return cls(**config)
-        return cls(*config)
+        return cls(**config)
     
 
 if __name__ == "__main__":
