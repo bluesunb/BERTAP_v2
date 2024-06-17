@@ -42,6 +42,7 @@ class ConfigBase:
         d = self.__dict__.copy()
         d.pop('project_root', None)
         d.pop('save_dir', None)
+        return FrozenDict(d)
 
     def save(self, save_path_name: Path):
         # save_name = save_name.split('.')[0]
@@ -71,7 +72,7 @@ class ConfigBase:
         config = pickle.load(open(path, 'rb'))
         if isinstance(config, dict):
             return cls(**config)
-        return cls(*config)
+        return cls(**config)
     
 
 if __name__ == "__main__":
