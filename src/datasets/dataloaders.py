@@ -53,6 +53,10 @@ class TrajDataLoader:
         
         self.valid_ids = np.where(near_term_dist >= self.min_valid_len)[0]
         self.size = len(self.valid_ids)
+
+        # remove the goal
+        if not self.goal_conditioned:
+            self.dataset["goals"] = np.zeros_like(self.dataset["goals"])
         
     def _make_valid_indices(self, indices: np.ndarray):
         # Overflow check
@@ -168,7 +172,7 @@ class AntDataLoader(TrajDataLoader):
 @dataclass
 class AntMLMDataLoader(AntDataLoader):
     def __post_init__(self):
-        assert self.goal_conditioned, "AntMLMDataLoader must be goal conditioned"
+        # assert self.goal_conditioned, "AntMLMDataLoader must be goal conditioned"
         return super().__post_init__()
     
     def sample(self, batch_size: int = 1, starts: np.ndarray = None):
@@ -177,8 +181,6 @@ class AntMLMDataLoader(AntDataLoader):
         
         goals1 = batch1["goals"][..., 0, -self.goal_dim:]   # true goals
         goals2 = batch2["goals"][..., 0, -self.goal_dim:]   # true goals
-        # goals1 = batch1.goals[..., 0, -self.goal_dim:]
-        # goals2 = batch2.goals[..., 0, -self.goal_dim:]
         nsp_labels = np.asarray(np.linalg.norm(goals1 - goals2, axis=-1) < 2.0, dtype=np.int32)
         
         return batch1, batch2, nsp_labels

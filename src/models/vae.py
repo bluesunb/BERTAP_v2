@@ -86,6 +86,7 @@ class VQVAE(nn.Module):
 if __name__ == "__main__":
     import time
     import jax, optax
+    import jax.tree_util as jtr
     from src.common.configs import TotalConfigs
     from src.utils.context import make_rngs
     from src.scripts.vae_prepare import prepare_config_dataset
