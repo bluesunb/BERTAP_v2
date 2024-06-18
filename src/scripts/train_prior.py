@@ -143,7 +143,6 @@ def train_prior(state: TrainState,
         
     total_steps = n_epochs * loader_size
     global_step = flax.jax_utils.unreplicate(state.step).item()
-    eval_info_log = {}
     
     for epoch in range(n_epochs):
         pbar = tqdm(range(loader_size), desc=f"Epoch [{epoch + 1}/{n_epochs}]", ncols=120)
@@ -157,7 +156,7 @@ def train_prior(state: TrainState,
             loss = info["loss"].item()
             
             last_lr = state.opt_state.hyperparams["schedule"][0].item()
-            pbar.set_postfix({"loss": loss, "lr": last_lr, "global_step": global_step, **eval_info_log})
+            pbar.set_postfix({"loss": loss, "lr": last_lr, "global_step": global_step})
             global_step += 1
             
             if log_interval > 0 and (global_step % log_interval == 0 or global_step == 1 or global_step == total_steps - 1):
@@ -173,7 +172,6 @@ def train_prior(state: TrainState,
                 eval_info = eval_step_fn(state, eval_batch, device_rng)
                 eval_info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(eval_info, sep='/'))
                 logger.log(eval_info, global_step, prefix="Eval")
-                eval_info_log.update({f'Eval/{k}': v for k, v in eval_info.items()})
                 
     return state
 
@@ -254,21 +252,21 @@ def main(model_def: type[VQVAE],
     pickle.dump({"params": state.params, **state.extra_variables}, open(save_dir / "model_params.pkl", "wb"))
     
     if log_interval > 0:
-        logger.finish()
+        logger.run.finish()
 
 
 if __name__ == "__main__":
     import chex
     import os
     model_def = BertWithHeads
-    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0615-1437"
+    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0617-1620"
     
     pmap = True
     log_interval = 20
     save_interval = 2000
     eval_freq = 2
-    use_wandb = False
-    test = True
+    use_wandb = True
+    test = False
     
     loader_size = 1000 if test else 0
     batch_size = 256 if test else 512 * 4
@@ -282,7 +280,7 @@ if __name__ == "__main__":
     }
     
     if pmap:
-        main(model_def, vae_path, batch_size=batch_size, n_epochs=12,
+        main(model_def, vae_path, batch_size=batch_size, n_epochs=10,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:
