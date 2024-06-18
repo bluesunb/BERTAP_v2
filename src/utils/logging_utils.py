@@ -14,7 +14,7 @@ from collections import defaultdict, deque
 from numbers import Number
 
 from src.utils.ant_viz import GoalReachingAnt, get_canvas_image
-from typing import Dict, Optional, Sequence
+from typing import Dict, Optional, Sequence, List
 
 ArrayLike = jax.typing.ArrayLike
 
@@ -107,6 +107,31 @@ class Logger:
         
         self.run.log({tag: img if self._is_fake else wandb.Image(img)}, step)
         return img
+
+
+class TabularLogger:
+    def __init__(self, fields: List[str], pbar=None):
+        self.header = [f.capitalize().replace(' ', '_') for f in fields]
+        self.print_fn = pbar.write if pbar is not None else print
+        header_str = '|'.join(self._fit_to_header(f, f) for f in self.header)
+        self.print_fn(header_str)
+        self.print_fn('-' * len(header_str))
+
+    def _fit_to_header(self, field_name: str, value):
+        assert field_name in self.header, f'Field {field_name} not in header'
+        str_v = self._format(value)
+        width = max(len(field_name), len(str_v)) + 2
+        return "{0:^{1}}".format(str_v, width)
+
+    def _format(self, value):
+        if isinstance(value, float):
+            return f'{value:.4f}' if (1e-4 < abs(value) < 9.999e4 or value == 0) else f'{value:.4e}'
+        return str(value)
+
+    def log(self, **kwargs):
+        values = {f: kwargs.get(f.lower(), '') for f in self.header}
+        row = '|'.join(self._fit_to_header(f, v) for f, v in values.items())
+        self.print_fn(row)
     
     
 def get_now_str():
