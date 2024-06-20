@@ -37,6 +37,8 @@ class ModelConfig(ConfigBase):
     mask_prob: float = 0.7      # Probability of masking a token
     random_prob: float = 0.1    # Probability of replacing a token to a random token
     delete_prob: float = 0.1    # Probability of deleting a token
+    nsp_weight: float = 1.0     # Weight for the next sentence prediction loss
+    use_nsp: bool = True        # Whether to take the sequence pair as input
 
     # Vector Quantization
     traj_emb_dim: int = 512     # Dimension of the trajectory embeddings = VQ embedding size

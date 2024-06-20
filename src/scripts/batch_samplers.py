@@ -102,19 +102,23 @@ class MLMDataCollator:
         input_ids = jp.concatenate([jp.full((batch_size, 1), self.configs.cls_token), ids1, 
                                     jp.full((batch_size, 1), self.configs.sep_token), ids2], axis=1)
         
+        nsp_ids_mask = jp.zeros_like(ids2) if self.configs.use_nsp else jp.ones_like(ids2)
         special_tokens_mask = jp.concatenate([jp.ones((batch_size, 1)),
                                               jp.zeros_like(ids1), 
                                               jp.ones((batch_size, 1)),
-                                              jp.zeros_like(ids2)], axis=1, dtype=bool)
+                                              nsp_ids_mask], axis=1, dtype=bool)
         
         type_ids = jp.concatenate([jp.zeros((batch_size, 2 + ids1.shape[1])),
                                    jp.ones((batch_size, ids2.shape[1]))], axis=1, dtype='i4')
+        
+        attn_masks = jp.ones_like(type_ids) if self.configs.use_nsp else 1 - type_ids.copy()
         
         input_ids, labels = self.modify_token(input_ids, special_tokens_mask, rng)
         return {"input_ids": input_ids.astype("i4"), 
                 "type_ids": type_ids.astype("i4"),
                 "labels": labels.astype("i4"), 
-                "nsp_labels": nsp_labels.astype("i4")}
+                "nsp_labels": nsp_labels.astype("i4"),
+                "mask": attn_masks.astype("i4")[..., None]}
 
     def modify_token(self, input_ids: np.ndarray, special_tokens_mask: np.ndarray, rng: jp.ndarray = None) -> Tuple[np.ndarray, np.ndarray]:
         labels = input_ids.copy()
