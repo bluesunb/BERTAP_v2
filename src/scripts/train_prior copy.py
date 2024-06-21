@@ -33,7 +33,7 @@ def make_schedule_fn(train_config: TrainConfig, **schedule_kwargs) -> optax.Sche
     def constant_schedule(**kwargs):
         return optax.constant_schedule(train_config.learning_rate)
     
-    def one_cycle(total_steps: int):
+    def one_cycle(total_steps: int, **kwargs):
         return optax.cosine_onecycle_schedule(
             transition_steps=total_steps,
             peak_value=train_config.learning_rate,
@@ -42,13 +42,13 @@ def make_schedule_fn(train_config: TrainConfig, **schedule_kwargs) -> optax.Sche
             final_div_factor=1e3,
         )
         
-    def bert_warmup(init_value: float, warmup_steps: int):
+    def bert_warmup(init_value: float, warmup_steps: int, **kwargs):
         def schedule_fn(step: int):
-            scale = jp.minimum(jp.power(step * -0.5) , jp.power(warmup_steps * -1.5) * step)
+            scale = jp.minimum(jp.power(step, -0.5) , jp.power(warmup_steps, -1.5) * step)
             return scale * init_value
         return schedule_fn
     
-    if TrainConfig.scheduler_name == "constant":
+    if train_config.scheduler_name == "constant":
         return constant_schedule(**schedule_kwargs)
     
     if train_config.scheduler_name == "one_cycle":
@@ -108,11 +108,21 @@ def eval_step(state: TrainState, batch: jp.ndarray, rng: jp.ndarray, config: Mod
     nsp_preds = jp.argmax(nsp_logits, axis=-1)
     
     mlm_acc = jp.mean((mlm_preds == mlm_labels) * label_mask)
+    # mlm_acc = jp.mean((mlm_preds[..., -1] == mlm_labels[..., -1]) * label_mask[..., -1])
     nsp_acc = jp.mean(nsp_preds == nsp_labels)
     
     metrics = {"loss": loss, "mlm_acc": mlm_acc, "nsp_acc": nsp_acc}
     metrics = jax.lax.pmean(metrics, axis_name=pmap_axis)
     return metrics
+
+
+def fit_batch_to_tap(batch: Dict[str, jp.ndarray], config: ModelConfig):
+    batch = jtr.tree_map(lambda x: x[:, 1:config.reduced_len + 1] if x.ndim > 1 else x, batch)
+    batch = {"ids": batch["input_ids"][..., :-1], 
+             "condition": jp.zeros((batch["input_ids"].shape[0], 1, config.goal_dim), dtype=jp.float32),
+             "labels": batch["labels"],
+             "nsp_labels": batch["nsp_labels"]}
+    return batch
 
 
 def train_prior(state: TrainState,
@@ -133,10 +143,11 @@ def train_prior(state: TrainState,
     
     if eval_batch is None:
         eval_batch = sample_batch_fn(pmap=False, rng=rng)
+        eval_batch = fit_batch_to_tap(eval_batch, configs.model_config)
         
     loader_size = dataloader.size // configs.train_config.batch_size
     if kwargs.get("loader_size", 0) > 0:
-        loader_size //= kwargs["loader_size"]
+        loader_size = kwargs["loader_size"]
         print('\33[031mLoader size modified!!!\33[0m')
         
     total_steps = n_epochs * loader_size
@@ -150,6 +161,8 @@ def train_prior(state: TrainState,
             batch = sample_batch_fn(pmap=False, rng=rng)
             rng, device_rng = jax.random.split(rng)
             device_rng = shard_prng_key(rng)
+            
+            batch = fit_batch_to_tap(batch, configs.model_config)
             
             state, info = train_step_fn(state, batch, device_rng)
             info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(info, sep='/'))
@@ -169,6 +182,9 @@ def train_prior(state: TrainState,
             if eval_freq > 0 and (step + 1) % (loader_size // eval_freq) == 0:
                 rng, device_rng = jax.random.split(rng)
                 device_rng = shard_prng_key(device_rng)
+
+                # with chex.fake_pmap_and_jit():
+                    # eval_info = eval_step_fn(state, eval_batch, device_rng)
                 eval_info = eval_step_fn(state, eval_batch, device_rng)
                 eval_info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(eval_info, sep='/'))
                 logger.log(eval_info, global_step, prefix="Eval")
@@ -207,12 +223,12 @@ def main(model_def: type[VQVAE],
     # Eval batch =======
     eval_starts = np.arange(4) * dataloader.seq_len + 21 * 1000
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
+    eval_batch = fit_batch_to_tap(eval_batch, configs.model_config)
 
     # Schedule & States =======
     total_steps = (dataloader.size // batch_size) * n_epochs
     scheduler = make_schedule_fn(
-        configs.train_config, 
-        scheduler_name="bertwarmup",
+        configs.train_config,
         total_steps=total_steps,
         init_value=configs.train_config.learning_rate * (configs.model_config.emb_dim ** -0.5),
         warmup_steps=total_steps // 10
@@ -263,17 +279,18 @@ def main(model_def: type[VQVAE],
 if __name__ == "__main__":
     import chex
     import os
-    model_def = BertWithHeads
+    from src.models.tap_transformer import TAPWithHeads
+    model_def = TAPWithHeads
     vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0617-1620"
     
-    pmap = True
     log_interval = 20
     save_interval = 2000
     eval_freq = 5
+    pmap = True
     use_wandb = False
-    test = True
+    test = False
     
-    loader_size = 1000 if test else 0
+    loader_size = 5 if test else 0
     batch_size = 256 if test else 512 * 4
     
     structure = {"emb_dim": 512,
@@ -285,7 +302,7 @@ if __name__ == "__main__":
                  "use_nsp": False}
     
     kwargs = {
-        "model": {"modify_prob": 0.0, "mask_prob": 0.7, "random_prob": 0.15,
+        "model": {"modify_prob": 1.0, "mask_prob": 0.0, "random_prob": 0.0,
                   "n_special_tokens": 3, "vae_path": vae_path,
                   **structure},
         "dataset": {},
