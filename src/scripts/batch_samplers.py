@@ -1,3 +1,4 @@
+import flax.jax_utils
 import jax
 import jax.numpy as jp
 import jax.tree_util as jtr
@@ -29,16 +30,54 @@ def vae_batch_sampler(loader: AntDataLoader, batch_size: int, normalize: bool = 
     splits = np.cumsum([0] + dims)
     splits = [(splits[i - 1], splits[i]) for i in range(1, len(splits))]
     
-    def sample_fn(pmap: Optional[bool] = False, **sample_kwargs) -> Dict[str, np.ndarray]:
+    def sample_fn(pmap: bool = False, **sample_kwargs) -> Dict[str, np.ndarray]:
         batch = loader.sample(batch_size, **sample_kwargs)
         if normalize:
             batch = normalizer.normalize(batch)
             
         batch = {"traj_seq": np.concatenate([batch[key] for key in keys], axis=-1), "masks": batch["masks"]}
-        
+
         if pmap:
             batch = shard(batch)
 
+        return batch
+    
+    return sample_fn, (normalizer, splits)
+
+
+def gpt_batch_sampler(loader: AntDataLoader, 
+                      batch_size: int,  
+                      data_collator: "GPTDataCollator",
+                      normalize: bool = False, 
+                      **kwargs):
+    
+    tmp_data = loader.sample()
+    keys = ('goals', 'observations', 'actions', loader.terminal_key)
+    normalizer = Normalizer(loader.dataset, keys[:-1], **kwargs)
+    
+    dims = [tmp_data[key].shape[-1] if tmp_data[key].ndim > 1 else 1 for key in normalizer.mean.keys()]
+    splits = np.cumsum([0] + dims)
+    splits = [(splits[i - 1], splits[i]) for i in range(1, len(splits))]
+    
+    collate_fn = pad_shard_unpad(jax.pmap(data_collator.__call__), static_argnums=(1,), static_return=False)
+    
+    def sample_fn(pmap: bool = False, return_conditioned: bool = False, rng: jp.ndarray = None, **sample_kwargs) -> Dict[str, np.ndarray]:
+        batch = loader.sample(batch_size, **sample_kwargs)
+        if normalize:
+            batch = normalizer.normalize(batch)
+            
+        if rng is not None:
+            rng = flax.jax_utils.replicate(rng)
+        
+        batch = {"traj_seq": np.concatenate([batch[key] for key in keys], axis=-1), "masks": batch["masks"]}
+        condition = batch["traj_seq"][:, :1, :dims[0] + dims[1]]
+
+        batch = collate_fn(batch, rng)
+        batch["condition"] = condition
+        
+        if pmap:
+            batch = shard(batch)
+            
         return batch
     
     return sample_fn, (normalizer, splits)
@@ -60,7 +99,7 @@ def mlm_batch_sampler(loader: AntMLMDataLoader,
     
     collator_fn = pad_shard_unpad(jax.pmap(data_collator.__call__), static_argnums=(3,), static_return=False)
 
-    def sample_fn(pmap: Optional[bool] = False, rng: jp.ndarray = None, **sample_kwargs) -> Dict[str, np.ndarray]:
+    def sample_fn(pmap: bool = False, return_condition: bool = False, rng: jp.ndarray = None, **sample_kwargs) -> Dict[str, np.ndarray]:
         batch1, batch2, nsp_labels = loader.sample(batch_size, **sample_kwargs)
         if normalize:
             batch1 = normalizer.normalize(batch1)
@@ -71,7 +110,15 @@ def mlm_batch_sampler(loader: AntMLMDataLoader,
 
         batch1 = {"traj_seq": np.concatenate([batch1[key] for key in keys], axis=-1), "masks": batch1["masks"]}
         batch2 = {"traj_seq": np.concatenate([batch2[key] for key in keys], axis=-1), "masks": batch2["masks"]}
+
+        if return_condition:
+            condition1 = batch1["traj_seq"][:, :1, :dims[0] + dims[1]]
+            condition2 = batch2["traj_seq"][:, :1, :dims[0] + dims[1]]
+
         batch = collator_fn(batch1, batch2, nsp_labels, rng)
+
+        if return_condition:
+            batch["condition"] = np.concatenate([condition1, condition2], axis=-1)
         
         if pmap:
             batch = shard(batch)
@@ -79,6 +126,20 @@ def mlm_batch_sampler(loader: AntMLMDataLoader,
         return batch
     
     return sample_fn, (normalizer, splits)
+
+
+@flax.struct.dataclass
+class GPTDataCollator:
+    tokenizer: VQVAE
+    params: flax.core.FrozenDict
+    configs: ModelConfig
+    seed: Optional[int] = 0
+    
+    def __call__(self, batch: Dict[str, jp.ndarray], rng: jp.ndarray = None) -> Dict[str, np.ndarray]:
+        x_enc = self.tokenizer.apply(self.params, **batch, train=False, method=self.tokenizer.encode)
+        _, vq_info = self.tokenizer.apply(self.params, x_enc, train=False, method=self.tokenizer.quantize)
+        ids = vq_info["indices"]
+        return {"input_ids": ids.astype("i4"), "labels": ids.astype("i4"), "mask": jp.ones_like(ids).astype("i4")[..., None]}
 
 
 @flax.struct.dataclass

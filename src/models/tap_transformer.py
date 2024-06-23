@@ -35,15 +35,15 @@ class TAPWithHeads(nn.Module):
 
     @nn.compact
     def __call__(self, 
-                 ids: jp.ndarray, 
+                 input_ids: jp.ndarray, 
                  condition: jp.ndarray, 
                  mask: jp.ndarray = None, 
                  train: bool = True):
         
-        out = TAPEmbedding(self.config.vocab_size, self.config.seq_len, self.config.emb_dim, self.config.emb_pdrop)(ids, condition, train)
-        
         if mask is None:
-            mask = jp.ones((1, ids.shape[1] + 1, 1), dtype=ids.dtype)
+            mask = jp.ones((1, input_ids.shape[1], 1), dtype=input_ids.dtype)
+        
+        out = TAPEmbedding(self.config.vocab_size, self.config.seq_len, self.config.emb_dim, self.config.emb_pdrop)(input_ids[:, :-1], condition, train)
             
         for _ in range(self.config.n_layers):
             out = TransformerEncoder(self.config.emb_dim,
@@ -54,7 +54,5 @@ class TAPWithHeads(nn.Module):
                                      resid_pdrop=self.config.resid_pdrop)(out, mask, train=train)
             
         logits = nn.Dense(self.config.vocab_size, kernel_init=init_normal, name="pred_head")(out)
-        logits = logits.reshape((ids.shape[0], out.shape[1], -1))
-
-        fake_nsp_logits = jp.zeros((ids.shape[0], 2))
-        return logits, fake_nsp_logits
+        logits = logits.reshape((input_ids.shape[0], out.shape[1], -1))
+        return logits

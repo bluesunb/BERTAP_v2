@@ -18,8 +18,8 @@ from src.datasets import AntMLMDataLoader, AntNormalizer, make_env
 from src.utils.train_state import TrainState
 from src.utils.logging_utils import Logger, compare_recons, TabularLogger
 from src.utils.context import make_rngs, save_state
-from src.scripts.prior_prepare import prepare_config_dataset, prepare_states
-from src.scripts.batch_samplers import mlm_batch_sampler, MLMDataCollator
+from src.scripts.prior_prepare_copy import prepare_config_dataset, prepare_states
+from src.scripts.batch_samplers import gpt_batch_sampler, GPTDataCollator
 
 import wandb
 from boxprint import bprint
@@ -61,19 +61,12 @@ def make_schedule_fn(train_config: TrainConfig, **schedule_kwargs) -> optax.Sche
 
 
 def calc_loss(logits: Tuple[jp.ndarray, ...], labels: Tuple[jp.ndarray, ...], label_mask: jp.ndarray, nsp_weight: float = 1.0):
-    outs = zip(logits, labels)
-    mlm_logits, mlm_labels = next(outs)
-    nsp_logits, nsp_labels = next(outs)
-    
     n_labels = label_mask.sum()
-    mlm_loss = optax.softmax_cross_entropy_with_integer_labels(mlm_logits, mlm_labels) * label_mask
-    nsp_loss = optax.softmax_cross_entropy_with_integer_labels(nsp_logits, nsp_labels) * nsp_weight
+    mlm_loss = optax.softmax_cross_entropy_with_integer_labels(logits, labels) * label_mask
     
     mlm_loss = mlm_loss.sum() / n_labels
-    nsp_loss = nsp_loss.mean()
-    loss = mlm_loss + nsp_loss
     
-    return loss, {"mlm_loss": mlm_loss, "nsp_loss": nsp_loss}
+    return mlm_loss, {"mlm_loss": mlm_loss}
     
     
 def train_step(state: TrainState, batch: Dict[str, jp.ndarray], rng: jp.ndarray, config: ModelConfig, pmap_axis: str = None):
@@ -81,11 +74,11 @@ def train_step(state: TrainState, batch: Dict[str, jp.ndarray], rng: jp.ndarray,
     rngs = make_rngs(rng, rng_names, contain_params=False)
     
     def loss_fn(params):
-        mlm_labels, nsp_labels = batch.pop("labels"), batch.pop("nsp_labels")
-        mlm_logits, nsp_logits = state(**batch, train=True, params=params, rngs=rngs)
+        mlm_labels = batch.pop("labels")
+        mlm_logits = state(**batch, train=True, params=params, rngs=rngs)
         label_mask = mlm_labels >= 0
         
-        loss, info = calc_loss((mlm_logits, nsp_logits), (mlm_labels, nsp_labels), label_mask, nsp_weight=config.nsp_weight)
+        loss, info = calc_loss(mlm_logits, mlm_labels, label_mask, nsp_weight=config.nsp_weight)
         info['loss'] = loss
         return loss, info
     
@@ -98,31 +91,19 @@ def eval_step(state: TrainState, batch: jp.ndarray, rng: jp.ndarray, config: Mod
     rng_names = ("dropout", )
     rngs = make_rngs(rng, rng_names, contain_params=False)
 
-    mlm_labels, nsp_labels = batch.pop("labels"), batch.pop("nsp_labels")
-    mlm_logits, nsp_logits = state(**batch, train=False, rngs=rngs)
+    mlm_labels = batch.pop("labels")
+    mlm_logits = state(**batch, train=False, rngs=rngs)
     label_mask = mlm_labels > -100
     
-    loss, info = calc_loss((mlm_logits, nsp_logits), (mlm_labels, nsp_labels), label_mask, nsp_weight=config.nsp_weight)
+    loss, info = calc_loss(mlm_logits, mlm_labels, label_mask, nsp_weight=config.nsp_weight)
     
     mlm_preds = jp.argmax(mlm_logits, axis=-1)
-    nsp_preds = jp.argmax(nsp_logits, axis=-1)
-    
     mlm_acc = jp.mean((mlm_preds == mlm_labels) * label_mask)
     # mlm_acc = jp.mean((mlm_preds[..., -1] == mlm_labels[..., -1]) * label_mask[..., -1])
-    nsp_acc = jp.mean(nsp_preds == nsp_labels)
     
-    metrics = {"loss": loss, "mlm_acc": mlm_acc, "nsp_acc": nsp_acc}
+    metrics = {"loss": loss, "mlm_acc": mlm_acc}
     metrics = jax.lax.pmean(metrics, axis_name=pmap_axis)
     return metrics
-
-
-def fit_batch_to_tap(batch: Dict[str, jp.ndarray], config: ModelConfig):
-    batch = jtr.tree_map(lambda x: x[:, 1:config.reduced_len + 1] if x.ndim > 1 else x, batch)
-    batch = {"ids": batch["input_ids"][..., :-1], 
-             "condition": jp.zeros((batch["input_ids"].shape[0], 1, config.goal_dim), dtype=jp.float32),
-             "labels": batch["labels"],
-             "nsp_labels": batch["nsp_labels"]}
-    return batch
 
 
 def train_prior(state: TrainState,
@@ -142,8 +123,7 @@ def train_prior(state: TrainState,
     rng = jax.random.PRNGKey(configs.train_config.seed)
     
     if eval_batch is None:
-        eval_batch = sample_batch_fn(pmap=False, rng=rng)
-        eval_batch = fit_batch_to_tap(eval_batch, configs.model_config)
+        eval_batch = sample_batch_fn(pmap=False, return_conditioned=True, rng=rng)
         
     loader_size = dataloader.size // configs.train_config.batch_size
     if kwargs.get("loader_size", 0) > 0:
@@ -154,15 +134,13 @@ def train_prior(state: TrainState,
     global_step = flax.jax_utils.unreplicate(state.step).item()
     
     epoch_bar = tqdm(range(n_epochs), desc="Epochs", ncols=120, position=0)
-    eval_logger = TabularLogger(["Step", "Eval Loss", "MLM Acc", "NSP Acc"], pbar=epoch_bar)
-    for epoch in range(n_epochs):
+    eval_logger = TabularLogger(["Step", "Eval Loss", "MLM Acc"], pbar=epoch_bar)
+    for epoch in epoch_bar:
         pbar = tqdm(range(loader_size), desc=f"Epoch [{epoch + 1}/{n_epochs}]", ncols=120, position=1)
         for step in pbar:
-            batch = sample_batch_fn(pmap=False, rng=rng)
+            batch = sample_batch_fn(pmap=False, return_conditioned=True, rng=rng)
             rng, device_rng = jax.random.split(rng)
             device_rng = shard_prng_key(rng)
-            
-            batch = fit_batch_to_tap(batch, configs.model_config)
             
             state, info = train_step_fn(state, batch, device_rng)
             info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(info, sep='/'))
@@ -191,8 +169,7 @@ def train_prior(state: TrainState,
                 
                 eval_logger.log(step=global_step,
                                 eval_loss=eval_info["loss"].item(),
-                                mlm_acc=eval_info["mlm_acc"].item(),
-                                nsp_acc=eval_info["nsp_acc"].item())
+                                mlm_acc=eval_info["mlm_acc"].item())
                 
     return state
 
@@ -214,16 +191,15 @@ def main(model_def: type[VQVAE],
     
     # Data collator =======
     vae = VQVAE(vae_configs.model_config, training=False)
-    data_collator = MLMDataCollator(vae, vae_params, configs.model_config, seed=configs.train_config.seed)
+    data_collator = GPTDataCollator(vae, vae_params, configs.model_config, seed=configs.train_config.seed)
     
     # Data sampler =======
-    sample_batch_fn, (normalizer, splits) = mlm_batch_sampler(dataloader, batch_size, data_collator, 
+    sample_batch_fn, (normalizer, splits) = gpt_batch_sampler(dataloader, batch_size, data_collator, 
                                                               normalize=True, hierarchical_goal=configs.data_config.hierarchical_goal)
     
     # Eval batch =======
     eval_starts = np.arange(4) * dataloader.seq_len + 21 * 1000
-    eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
-    eval_batch = fit_batch_to_tap(eval_batch, configs.model_config)
+    eval_batch = sample_batch_fn(starts=eval_starts, return_conditioned=True, pmap=False)
 
     # Schedule & States =======
     total_steps = (dataloader.size // batch_size) * n_epochs
@@ -280,8 +256,11 @@ if __name__ == "__main__":
     import chex
     import os
     from src.models.tap_transformer import TAPWithHeads
+    
+    jax.config.update('jax_debug_nans', True)
+    
     model_def = TAPWithHeads
-    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0617-1620"
+    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0617-1754"
     
     log_interval = 20
     save_interval = 2000
@@ -293,10 +272,10 @@ if __name__ == "__main__":
     loader_size = 5 if test else 0
     batch_size = 256 if test else 512 * 4
     
-    structure = {"emb_dim": 512,
+    structure = {"emb_dim": 128,
                  "n_heads": 8,
-                 "n_layers": 1,
-                 "ff_dim": 512 * 4,
+                 "n_layers": 4,
+                 "ff_dim": 128 * 4,
                  "causal": True,
                  "nsp_weight": 0.0,
                  "use_nsp": False}
@@ -306,17 +285,17 @@ if __name__ == "__main__":
                   "n_special_tokens": 3, "vae_path": vae_path,
                   **structure},
         "dataset": {},
-        "train": {"scheduler_name": "bertwarmup"},
+        "train": {"scheduler_name": "one_cycle", "learning_rate": 8e-3},
         "loader_size": loader_size
     }
     
     if pmap:
-        main(model_def, vae_path, batch_size=batch_size, n_epochs=10,
+        main(model_def, vae_path, batch_size=batch_size, n_epochs=7,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:
-        jax.config.update("jax_platform_name", "cpu")
-        chex.set_n_cpu_devices(4)
+        # jax.config.update("jax_platform_name", "cpu")
+        # chex.set_n_cpu_devices(4)
         with chex.fake_pmap_and_jit():
             main(model_def, vae_path, batch_size=32, n_epochs=10,
                  log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)

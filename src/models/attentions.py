@@ -72,7 +72,7 @@ class FeedForward(nn.Module):
     
     @nn.compact
     def __call__(self, x: jp.ndarray):
-        x = nn.Dense(self.mid_emb_dim, kernel_init=default_kernel)(x)
+        x = nn.Dense(self.mid_emb_dim, kernel_init=init_normal)(x)
         x = nn.gelu(x)
         x = nn.Dense(self.emb_dim, kernel_init=init_normal)(x)
         return x

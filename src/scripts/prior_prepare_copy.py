@@ -10,7 +10,7 @@ from pathlib import Path
 from src.models.vae import VQVAE
 from src.models.transformer import BertWithHeads
 from src.common.configs import TotalConfigs, DatasetConfig, ModelConfig, TrainConfig
-from src.datasets import get_dataset, make_env, AntMLMDataLoader
+from src.datasets import get_dataset, make_env, AntDataLoader
 from src.utils.context import make_rngs, make_state
 from src.utils.logging_utils import get_now_str
 
@@ -19,7 +19,7 @@ def prepare_config_dataset(vae_path: Path,
                            batch_size: int,
                            n_epochs: int,
                            scheduler_name: str = "constant",
-                           **kwargs) -> tuple[AntMLMDataLoader, TotalConfigs, flax.core.FrozenDict, TotalConfigs]:
+                           **kwargs) -> tuple[AntDataLoader, TotalConfigs, flax.core.FrozenDict, TotalConfigs]:
     
     vae_config = TotalConfigs.load_from_txt(vae_path)       # load configs from text due to ease of modification
     vae_params = pickle.load((vae_path / "model_params.pkl").open("rb"))
@@ -30,14 +30,14 @@ def prepare_config_dataset(vae_path: Path,
     env = make_env(data_config.env_name)
     dataset = get_dataset(env, data_config.env_name)
     assert data_config.seq_len == data_config.min_valid_len, "seq_len != min_valid_len, There is a error in the saveing vae config"
-    dataset = AntMLMDataLoader(dataset=dataset,
-                               seq_len=data_config.seq_len,
-                               min_valid_len=data_config.min_valid_len,
-                               terminal_key=data_config.terminal_key,
-                               goal_conditioned=data_config.goal_conditioned,
-                               p_true_goal=data_config.p_true_goal,
-                               p_sub_goal=data_config.p_sub_goal,
-                               hierarchical_goal=data_config.hierarchical_goal)
+    dataset = AntDataLoader(dataset=dataset,
+                            seq_len=data_config.seq_len,
+                            min_valid_len=data_config.min_valid_len,
+                            terminal_key=data_config.terminal_key,
+                            goal_conditioned=data_config.goal_conditioned,
+                            p_true_goal=data_config.p_true_goal,
+                            p_sub_goal=data_config.p_sub_goal,
+                            hierarchical_goal=data_config.hierarchical_goal)
         
     model_config = ModelConfig(**vae_config.model_config.get_dict())
     model_config.update(**dict(
@@ -95,11 +95,9 @@ def prepare_states(model_def: type[BertWithHeads],
         )
         
     tx = optimizer(scheduler)
-    ids1 = jp.empty((1, configs.model_config.seq_len - 1), dtype=jp.int32)
-    ids2 = jp.empty((1, configs.model_config.seq_len), dtype=jp.int32)
-    nsp_labels = jp.ones((1,), dtype=jp.int32)
-    state = make_state(make_rngs(rng, ('dropout', ), contain_params=True),
-                       model, tx, ids1, ids2, nsp_labels)
+    ids = jp.empty((1, configs.model_config.seq_len - 1), dtype=jp.int32)
+    condition = jp.empty((1, 1, configs.model_config.goal_dim + configs.model_config.observation_dim), dtype=jp.float32)
+    state = make_state(make_rngs(rng, ('dropout', ), contain_params=True), model, tx, ids, condition)
     
     return state
     
