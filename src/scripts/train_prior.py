@@ -33,7 +33,7 @@ def make_schedule_fn(train_config: TrainConfig, **schedule_kwargs) -> optax.Sche
     def constant_schedule(**kwargs):
         return optax.constant_schedule(train_config.learning_rate)
     
-    def one_cycle(total_steps: int):
+    def one_cycle(total_steps: int, **kwargs):
         return optax.cosine_onecycle_schedule(
             transition_steps=total_steps,
             peak_value=train_config.learning_rate,
@@ -42,13 +42,13 @@ def make_schedule_fn(train_config: TrainConfig, **schedule_kwargs) -> optax.Sche
             final_div_factor=1e3,
         )
         
-    def bert_warmup(init_value: float, warmup_steps: int):
+    def bert_warmup(init_value: float, warmup_steps: int, **kwargs):
         def schedule_fn(step: int):
-            scale = jp.minimum(jp.power(step * -0.5) , jp.power(warmup_steps * -1.5) * step)
+            scale = jp.minimum(jp.power(step, -0.5) , jp.power(warmup_steps, -1.5) * step)
             return scale * init_value
         return schedule_fn
     
-    if TrainConfig.scheduler_name == "constant":
+    if train_config.scheduler_name == "constant":
         return constant_schedule(**schedule_kwargs)
     
     if train_config.scheduler_name == "one_cycle":
@@ -136,7 +136,7 @@ def train_prior(state: TrainState,
         
     loader_size = dataloader.size // configs.train_config.batch_size
     if kwargs.get("loader_size", 0) > 0:
-        loader_size //= kwargs["loader_size"]
+        loader_size = kwargs["loader_size"]
         print('\33[031mLoader size modified!!!\33[0m')
         
     total_steps = n_epochs * loader_size
@@ -144,7 +144,7 @@ def train_prior(state: TrainState,
     
     epoch_bar = tqdm(range(n_epochs), desc="Epochs", ncols=120, position=0)
     eval_logger = TabularLogger(["Step", "Eval Loss", "MLM Acc", "NSP Acc"], pbar=epoch_bar)
-    for epoch in range(n_epochs):
+    for epoch in epoch_bar:
         pbar = tqdm(range(loader_size), desc=f"Epoch [{epoch + 1}/{n_epochs}]", ncols=120, position=1)
         for step in pbar:
             batch = sample_batch_fn(pmap=False, rng=rng)
@@ -211,8 +211,7 @@ def main(model_def: type[VQVAE],
     # Schedule & States =======
     total_steps = (dataloader.size // batch_size) * n_epochs
     scheduler = make_schedule_fn(
-        configs.train_config, 
-        scheduler_name="bertwarmup",
+        configs.train_config,
         total_steps=total_steps,
         init_value=configs.train_config.learning_rate * (configs.model_config.emb_dim ** -0.5),
         warmup_steps=total_steps // 10
@@ -263,33 +262,36 @@ def main(model_def: type[VQVAE],
 if __name__ == "__main__":
     import chex
     import os
+    
+    jax.config.update("jax_debug_nans", True)
+    
     model_def = BertWithHeads
     vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0617-1620"
     
-    pmap = True
     log_interval = 20
     save_interval = 2000
     eval_freq = 5
+    pmap = True
     use_wandb = False
-    test = True
+    test = False
     
     loader_size = 1000 if test else 0
     batch_size = 256 if test else 512 * 4
     
-    structure = {"emb_dim": 512,
+    structure = {"emb_dim": 256,
                  "n_heads": 8,
-                 "n_layers": 1,
-                 "ff_dim": 512 * 4,
-                 "causal": True,
+                 "n_layers": 4,
+                 "ff_dim": 256 * 4,
+                 "causal": False,
                  "nsp_weight": 0.0,
                  "use_nsp": False}
     
     kwargs = {
-        "model": {"modify_prob": 0.0, "mask_prob": 0.7, "random_prob": 0.15,
+        "model": {"modify_prob": 0.8, "mask_prob": 0.7, "random_prob": 0.15,
                   "n_special_tokens": 3, "vae_path": vae_path,
                   **structure},
         "dataset": {},
-        "train": {"scheduler_name": "bertwarmup"},
+        "train": {"scheduler_name": "one_cycle", "learning_rate": 8e-3},
         "loader_size": loader_size
     }
     
@@ -298,8 +300,8 @@ if __name__ == "__main__":
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:
-        jax.config.update("jax_platform_name", "cpu")
-        chex.set_n_cpu_devices(4)
+        # jax.config.update("jax_platform_name", "cpu")
+        # chex.set_n_cpu_devices(4)
         with chex.fake_pmap_and_jit():
             main(model_def, vae_path, batch_size=32, n_epochs=10,
                  log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)

@@ -95,11 +95,8 @@ def prepare_states(model_def: type[BertWithHeads],
         )
         
     tx = optimizer(scheduler)
-    ids1 = jp.empty((1, configs.model_config.seq_len - 1), dtype=jp.int32)
-    ids2 = jp.empty((1, configs.model_config.seq_len), dtype=jp.int32)
-    nsp_labels = jp.ones((1,), dtype=jp.int32)
-    state = make_state(make_rngs(rng, ('dropout', ), contain_params=True),
-                       model, tx, ids1, ids2, nsp_labels)
+    input_ids = jp.empty((1, configs.model_config.reduced_len * 2 + 2), dtype='i4')
+    state = make_state(make_rngs(rng, ('dropout', ), contain_params=True), model, tx, input_ids)
     
     return state
     
