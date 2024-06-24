@@ -169,7 +169,8 @@ def compare_recons(logger: Logger,
                    goal_dim: int,
                    global_step: int,
                    quantized: np.ndarray = None,
-                   goal_conditioned: bool = False):
+                   goal_conditioned: bool = False,
+                   visualize: bool = False):
 
     assert (not goal_conditioned or goal_dim > 0), "Goal conditioned but goal_dim not provided"
 
@@ -225,7 +226,11 @@ def compare_recons(logger: Logger,
             axes[i, j].set_ylim(new_ylim)
 
     plt.tight_layout()
-    img = get_canvas_image(canvas)
-    plt.close(fig)
-    logger.log_arrays({"Reconstruction_arr": img}, step=global_step)
-    
+    if visualize:
+        plt.show(block=True)
+        plt.close(fig)
+    else:
+        img = get_canvas_image(canvas)
+        plt.close(fig)
+        logger.log_arrays({"Reconstruction_arr": img}, step=global_step)
+        

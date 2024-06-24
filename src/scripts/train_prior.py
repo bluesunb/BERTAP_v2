@@ -45,7 +45,7 @@ def make_schedule_fn(train_config: TrainConfig, **schedule_kwargs) -> optax.Sche
     def bert_warmup(init_value: float, warmup_steps: int, **kwargs):
         def schedule_fn(step: int):
             scale = jp.minimum(jp.power(step, -0.5) , jp.power(warmup_steps, -1.5) * step)
-            return scale * init_value
+            return scale * init_value + 1e-8
         return schedule_fn
     
     if train_config.scheduler_name == "constant":
@@ -145,7 +145,7 @@ def train_prior(state: TrainState,
     epoch_bar = tqdm(range(n_epochs), desc="Epochs", ncols=120, position=0)
     eval_logger = TabularLogger(["Step", "Eval Loss", "MLM Acc", "NSP Acc"], pbar=epoch_bar)
     for epoch in epoch_bar:
-        pbar = tqdm(range(loader_size), desc=f"Epoch [{epoch + 1}/{n_epochs}]", ncols=120, position=1)
+        pbar = tqdm(range(loader_size), desc=f"Epoch [{epoch + 1}/{n_epochs}]", ncols=120, position=1, leave=False)
         for step in pbar:
             batch = sample_batch_fn(pmap=False, rng=rng)
             rng, device_rng = jax.random.split(rng)
@@ -238,7 +238,7 @@ def main(model_def: type[VQVAE],
         run = None
     logger = Logger(run)
     
-    bprint(f"Experiment: {exp_name}\nEnvironment: {configs.data_config.env_name}\nDevices: {n_devices}\nLogging to: {save_dir}\n", width=120)
+    bprint(f"Experiment: {exp_name}\nEnvironment: {configs.data_config.env_name}\nDevices: {n_devices}\nLogging to: {save_dir}", width=120)
     
     # Training loop =======
     state = train_prior(state, configs, p_train_step, p_eval_step, sample_batch_fn, dataloader,
@@ -276,18 +276,18 @@ if __name__ == "__main__":
     test = False
     
     loader_size = 1000 if test else 0
-    batch_size = 256 if test else 512 * 4
+    batch_size = 256 if test else 1028 * 4
     
-    structure = {"emb_dim": 256,
+    structure = {"emb_dim": 128,
                  "n_heads": 8,
                  "n_layers": 4,
-                 "ff_dim": 256 * 4,
+                 "ff_dim": 128 * 4,
                  "causal": False,
-                 "nsp_weight": 0.0,
-                 "use_nsp": False}
+                 "nsp_weight": 0.1,
+                 "use_nsp": True}
     
     kwargs = {
-        "model": {"modify_prob": 0.8, "mask_prob": 0.7, "random_prob": 0.15,
+        "model": {"modify_prob": 0.8, "mask_prob": 0.8, "random_prob": 0.1,
                   "n_special_tokens": 3, "vae_path": vae_path,
                   **structure},
         "dataset": {},

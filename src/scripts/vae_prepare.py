@@ -62,6 +62,7 @@ def prepare_config_dataset(env_name: str,
         ma_update=False,
 
         seq_len=seq_len,
+        # max_seq_len=256,
         latent_step=latent_step,
         goal_conditional=data_config.goal_conditioned,      # NOT USED WARNING
         multi_modal=False,                                  # NOT USED WARNING

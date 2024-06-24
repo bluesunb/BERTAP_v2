@@ -11,11 +11,16 @@ from src.datasets import Normalizer, AntDataLoader, AntMLMDataLoader
 from src.common.configs import ModelConfig
 
 import numpy as np
+from functools import partial
 from typing import Optional, Callable, Tuple, List, Dict, Any
 
 
-def vae_batch_sampler(loader: AntDataLoader, batch_size: int, normalize: bool = True, **kwargs) \
-        -> Tuple[Callable[[], Dict[str, np.ndarray]], Tuple[Normalizer, List[Tuple[int, int]]]]:
+def vae_batch_sampler(
+    loader: AntDataLoader, 
+    batch_size: int, 
+    normalize: bool = True, 
+    **kwargs
+) -> Tuple[Callable[[], Dict[str, np.ndarray]], Tuple[Normalizer, List[Tuple[int, int]]]]:
     """
     Returns
          - sample_fn: Callable[[], Tuple[np.ndarray, np.ndarray]], a function that samples a batch of data
@@ -45,11 +50,13 @@ def vae_batch_sampler(loader: AntDataLoader, batch_size: int, normalize: bool = 
     return sample_fn, (normalizer, splits)
 
 
-def gpt_batch_sampler(loader: AntDataLoader, 
-                      batch_size: int,  
-                      data_collator: "GPTDataCollator",
-                      normalize: bool = False, 
-                      **kwargs):
+def gpt_batch_sampler(
+    loader: AntDataLoader, 
+    batch_size: int,  
+    data_collator: "GPTDataCollator",
+    normalize: bool = False, 
+    **kwargs
+) -> Tuple[Callable[[], Dict[str, np.ndarray]], Tuple[Normalizer, List[Tuple[int, int]]]]:
     
     tmp_data = loader.sample()
     keys = ('goals', 'observations', 'actions', loader.terminal_key)
@@ -60,7 +67,7 @@ def gpt_batch_sampler(loader: AntDataLoader,
     splits = [(splits[i - 1], splits[i]) for i in range(1, len(splits))]
     
     collate_fn = pad_shard_unpad(jax.pmap(data_collator.__call__), static_argnums=(1,), static_return=False)
-    
+
     def sample_fn(pmap: bool = False, return_conditioned: bool = False, rng: jp.ndarray = None, **sample_kwargs) -> Dict[str, np.ndarray]:
         batch = loader.sample(batch_size, **sample_kwargs)
         if normalize:
@@ -83,11 +90,13 @@ def gpt_batch_sampler(loader: AntDataLoader,
     return sample_fn, (normalizer, splits)
 
 
-def mlm_batch_sampler(loader: AntMLMDataLoader,
-                      batch_size: int,
-                      data_collator: "MLMDataCollator",
-                      normalize: bool = False,
-                      **kwargs):
+def mlm_batch_sampler(
+    loader: AntMLMDataLoader,
+    batch_size: int,
+    data_collator: "MLMDataCollator",
+    normalize: bool = False,
+    **kwargs
+) -> Tuple[Callable[[], Dict[str, np.ndarray]], Tuple[Normalizer, List[Tuple[int, int]]]]:
     
     tmp_data, _, _ = loader.sample()
     keys = ('goals', 'observations', 'actions', loader.terminal_key)
@@ -97,9 +106,10 @@ def mlm_batch_sampler(loader: AntMLMDataLoader,
     splits = np.cumsum([0] + dims)
     splits = [(splits[i - 1], splits[i]) for i in range(1, len(splits))]
     
-    collator_fn = pad_shard_unpad(jax.pmap(data_collator.__call__), static_argnums=(3,), static_return=False)
+    collator_fn = pad_shard_unpad(jax.pmap(data_collator.__call__), static_argnums=(5,), static_return=False)
+    # collator_fn = data_collator.__call__
 
-    def sample_fn(pmap: bool = False, return_condition: bool = False, rng: jp.ndarray = None, **sample_kwargs) -> Dict[str, np.ndarray]:
+    def sample_fn(pmap: bool = False, rng: jp.ndarray = None, **sample_kwargs) -> Dict[str, np.ndarray]:
         batch1, batch2, nsp_labels = loader.sample(batch_size, **sample_kwargs)
         if normalize:
             batch1 = normalizer.normalize(batch1)
@@ -111,14 +121,10 @@ def mlm_batch_sampler(loader: AntMLMDataLoader,
         batch1 = {"traj_seq": np.concatenate([batch1[key] for key in keys], axis=-1), "masks": batch1["masks"]}
         batch2 = {"traj_seq": np.concatenate([batch2[key] for key in keys], axis=-1), "masks": batch2["masks"]}
 
-        if return_condition:
-            condition1 = batch1["traj_seq"][:, :1, :dims[0] + dims[1]]
-            condition2 = batch2["traj_seq"][:, :1, :dims[0] + dims[1]]
+        condition1 = batch1["traj_seq"][:, :1, :dims[0] + dims[1]]
+        condition2 = batch2["traj_seq"][:, :1, :dims[0] + dims[1]]
 
-        batch = collator_fn(batch1, batch2, nsp_labels, rng)
-
-        if return_condition:
-            batch["condition"] = np.concatenate([condition1, condition2], axis=-1)
+        batch = collator_fn(batch1, batch2, condition1, condition2, nsp_labels, rng)
         
         if pmap:
             batch = shard(batch)
@@ -149,8 +155,16 @@ class MLMDataCollator:
     configs: ModelConfig
     seed: Optional[int] = 0
 
-    def __call__(self, batch1: Dict[str, jp.ndarray], batch2: Dict[str, jp.ndarray], nsp_labels: jp.ndarray, rng: jp.ndarray = None) -> Dict[str, np.ndarray]:
-        # x_enc1 = self.tokenizer.encode(**batch1, train=False)
+    def __call__(
+        self, 
+        batch1: Dict[str, jp.ndarray], 
+        batch2: Dict[str, jp.ndarray], 
+        condition1: jp.ndarray,
+        condition2: jp.ndarray,
+        nsp_labels: jp.ndarray, 
+        rng: jp.ndarray = None
+    ) -> Dict[str, np.ndarray]:
+        
         x_enc1 = self.tokenizer.apply(self.params, **batch1, train=False, method=self.tokenizer.encode)
         x_enc2 = self.tokenizer.apply(self.params, **batch2, train=False, method=self.tokenizer.encode)
         _, vq_info1 = self.tokenizer.apply(self.params, x_enc1, train=False, method=self.tokenizer.quantize)
@@ -160,28 +174,34 @@ class MLMDataCollator:
         ids2 = vq_info2["indices"]
 
         batch_size = ids1.shape[0]
-        input_ids = jp.concatenate([jp.full((batch_size, 1), self.configs.cls_token), ids1, 
+        input_ids = jp.concatenate([jp.full((batch_size, 1), self.configs.cls_token), ids1,
                                     jp.full((batch_size, 1), self.configs.sep_token), ids2], axis=1)
-        
+
         nsp_ids_mask = jp.zeros_like(ids2) if self.configs.use_nsp else jp.ones_like(ids2)
         special_tokens_mask = jp.concatenate([jp.ones((batch_size, 1)),
-                                              jp.zeros_like(ids1), 
+                                              jp.zeros_like(ids1),
                                               jp.ones((batch_size, 1)),
                                               nsp_ids_mask], axis=1, dtype=bool)
+
+        # type_ids = jp.concatenate([jp.zeros((batch_size, 2 + ids1.shape[1])),
+        #                            jp.ones((batch_size, ids2.shape[1]))], axis=1, dtype='i4')
         
-        type_ids = jp.concatenate([jp.zeros((batch_size, 2 + ids1.shape[1])),
-                                   jp.ones((batch_size, ids2.shape[1]))], axis=1, dtype='i4')
-        
-        attn_masks = jp.ones_like(type_ids) if self.configs.use_nsp else 1 - type_ids.copy()
-        
+        conditions = jp.concatenate([condition1.repeat(ids1.shape[1] + 2, axis=1),
+                                     condition2.repeat(ids2.shape[1], axis=1)], axis=1)
+        if self.configs.use_nsp:
+            attn_masks = jp.ones_like(input_ids)
+        else:
+            attn_masks = jp.concatenate([jp.ones((batch_size, 2 + ids1.shape[1])),
+                                         jp.zeros((batch_size, ids2.shape[1]))], axis=1)
+
         input_ids, labels = self.modify_token(input_ids, special_tokens_mask, rng)
-        return {"input_ids": input_ids.astype("i4"), 
-                "type_ids": type_ids.astype("i4"),
-                "labels": labels.astype("i4"), 
+        return {"input_ids": input_ids.astype("i4"),
+                "conditions": conditions.astype("f4"),
+                "labels": labels.astype("i4"),
                 "nsp_labels": nsp_labels.astype("i4"),
                 "mask": attn_masks.astype("i4")[..., None]}
 
-    def modify_token(self, input_ids: np.ndarray, special_tokens_mask: np.ndarray, rng: jp.ndarray = None) -> Tuple[np.ndarray, np.ndarray]:
+    def modify_token(self, input_ids: jp.ndarray, special_tokens_mask: jp.ndarray, rng: jp.ndarray = None) -> Tuple[np.ndarray, np.ndarray]:
         labels = input_ids.copy()
         special_tokens_mask = special_tokens_mask.astype(bool)
 
@@ -206,24 +226,67 @@ class MLMDataCollator:
 
         labels = jp.where(modifying_flags, labels, -100)
         return input_ids, labels
-    
-    
+
+
 if __name__ == "__main__":
     import optax
-    from src.scripts.vae_prepare import prepare_config_dataset, prepare_states
-    from src.scripts.prior_prepare import prepare_config_dataset
+    from src.scripts.vae_prepare import prepare_config_dataset as prepare_config_dataset_vae
+    from src.scripts.prior_prepare import prepare_config_dataset as prepare_config_dataset_mlm
     from src.utils.context import load_state
     from src.common.configs import ModelConfig
     from pathlib import Path
-    import pickle
     
-    save_path = Path("/home/bluesun/PycharmProjects/tmp/BERTAP_v2/save/BERTAP_VAE-0615-1437")
-    loader, prior_configs, vae_params, vae_configs = prepare_config_dataset(save_path, batch_size=4, n_epochs=10)
+    import io
+    from cProfile import Profile
+    from pstats import Stats
+    
+    save_path = Path.home() / "PycharmProjects/tmp/BERTAP_v2/save/BERTAP_VAE-0617-1754"
+    loader, prior_configs, vae_params, vae_configs = prepare_config_dataset_mlm(save_path, batch_size=4, n_epochs=10)
     collator = MLMDataCollator(VQVAE(vae_configs.model_config, training=False), vae_params, prior_configs.model_config)
     sampler_fn, (normalizer, splits) = mlm_batch_sampler(loader, 4, collator, normalize=True)
+    
+    batch = sampler_fn()
+
+    # profiler = Profile()
+    # profiler.enable()
 
     import time
     for i in range(10):
         st = time.time()
         batch = sampler_fn()
         print(f"Time: {time.time() - st:.4f}s")
+    
+    print("Done")
+    
+    # profiler.disable()
+    # stream = io.StringIO()
+    # stats = Stats(profiler, stream=stream).sort_stats("cumtime")
+    # stats.print_stats()
+    
+    # save to file
+    # with open("mlm_batch_sampler.prof", "w") as f:
+    #     f.write(stream.getvalue())
+    
+    loader, _ = prepare_config_dataset_vae('antmaze-large-play-v2', seq_len=vae_configs.data_config.seq_len, latent_step=vae_configs.model_config.latent_step, batch_size=4, n_epochs=10)
+    collator = GPTDataCollator(VQVAE(vae_configs.model_config, training=False), vae_params, prior_configs.model_config)
+    sampler_fn, (normalizer, splits) = gpt_batch_sampler(loader, 4, collator, normalize=True)
+    
+    batch = sampler_fn()
+    
+    # profiler = Profile()
+    # profiler.enable()
+    
+    for i in range(10):
+        st = time.time()
+        batch = sampler_fn()
+        print(f"Time: {time.time() - st:.4f}s")
+        
+    print("Done")
+    
+    # profiler.disable()
+    # stream = io.StringIO()
+    # stats = Stats(profiler, stream=stream).sort_stats("cumtime")
+    # stats.print_stats()
+    
+    # with open("gpt_batch_sampler.prof", "w") as f:
+    #     f.write(stream.getvalue())

@@ -1,0 +1,107 @@
+         12021 function calls (11831 primitive calls) in 0.079 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+       10    0.002    0.000    0.079    0.008 /home/user/PycharmProjects/tmp/BERTAP_v2/src/scripts/batch_samplers.py:104(sample_fn)
+       10    0.018    0.002    0.053    0.005 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/flax/jax_utils.py:274(pad_shard_unpad_wrapper)
+  150/100    0.007    0.000    0.047    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/tree_util.py:279(tree_map)
+  680/580    0.004    0.000    0.041    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/tree_util.py:321(<genexpr>)
+       50    0.001    0.000    0.031    0.001 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/flax/jax_utils.py:308(unpad)
+       50    0.001    0.000    0.028    0.001 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/api.py:2661(device_get)
+       10    0.001    0.000    0.022    0.002 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataloaders.py:182(sample)
+      100    0.001    0.000    0.022    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/profiler.py:332(wrapper)
+       20    0.002    0.000    0.022    0.001 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataloaders.py:125(sample)
+      100    0.002    0.000    0.012    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:138(_create_copy_plan)
+       50    0.004    0.000    0.011    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:603(copy_to_host_async)
+       50    0.000    0.000    0.011    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/api.py:2651(_device_get)
+       50    0.000    0.000    0.010    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:404(__array__)
+       50    0.003    0.000    0.010    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:614(_value)
+      400    0.002    0.000    0.009    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:60(_get_device)
+      800    0.005    0.000    0.006    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:489(devices)
+       20    0.000    0.000    0.005    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataset.py:46(get_subset)
+      140    0.003    0.000    0.003    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataloaders.py:141(<lambda>)
+       90    0.000    0.000    0.003    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/fromnumeric.py:2979(prod)
+       20    0.001    0.000    0.003    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataloaders.py:79(_sample_ids)
+       90    0.001    0.000    0.003    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/fromnumeric.py:71(_wrapreduction)
+       20    0.000    0.000    0.002    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataloaders.py:119(_sample_sub_goal_ids)
+       20    0.001    0.000    0.002    0.000 {method 'choice' of 'numpy.random.mtrand.RandomState' objects}
+       20    0.002    0.000    0.002    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/normalizers.py:21(normalize)
+       10    0.000    0.000    0.002    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/flax/jax_utils.py:304(<listcomp>)
+       20    0.001    0.000    0.002    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataloaders.py:18(batched_randint)
+       40    0.000    0.000    0.002    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/flax/jax_utils.py:299(maybe_pad)
+      140    0.002    0.000    0.002    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataset.py:47(<lambda>)
+      500    0.001    0.000    0.002    0.000 {built-in method builtins.next}
+      100    0.001    0.000    0.001    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+       20    0.001    0.000    0.001    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataloaders.py:61(_make_valid_indices)
+       50    0.000    0.000    0.001    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/contextlib.py:130(__enter__)
+       50    0.000    0.000    0.001    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/contextlib.py:139(__exit__)
+      150    0.001    0.000    0.001    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/tree_util.py:71(tree_flatten)
+      120    0.001    0.000    0.001    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/shape_base.py:139(atleast_3d)
+      900    0.001    0.000    0.001    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:583(_check_if_deleted)
+       40    0.000    0.000    0.001    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/fromnumeric.py:1332(searchsorted)
+      100    0.001    0.000    0.001    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/config.py:1427(explicit_device_get_scope)
+     1050    0.001    0.000    0.001    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:253(sharding)
+      800    0.001    0.000    0.001    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/sharding_impls.py:430(device_set)
+       40    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/fromnumeric.py:53(_wrapfunc)
+  160/120    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}
+       40    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/sharding_impls.py:485(__eq__)
+       50    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/contextlib.py:279(helper)
+       40    0.000    0.000    0.000    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataloaders.py:9(broadcast_to)
+      100    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:364(is_fully_replicated)
+       10    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/linalg/linalg.py:2383(norm)
+       20    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/typing.py:975(__instancecheck__)
+      180    0.000    0.000    0.000    0.000 {built-in method builtins.getattr}
+       40    0.000    0.000    0.000    0.000 {method 'searchsorted' of 'numpy.ndarray' objects}
+       50    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/flax/jax_utils.py:286(pad)
+      140    0.000    0.000    0.000    0.000 {method 'reshape' of 'numpy.ndarray' objects}
+       80    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/tree_util.py:136(tree_leaves)
+       50    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/contextlib.py:102(__init__)
+       50    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:390(is_fully_addressable)
+      100    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/sharding_impls.py:494(__hash__)
+       20    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/typing.py:1130(__subclasscheck__)
+       90    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/fromnumeric.py:72(<dictcomp>)
+      250    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:237(shape)
+       20    0.000    0.000    0.000    0.000 {method 'rand' of 'numpy.random.mtrand.RandomState' objects}
+      540    0.000    0.000    0.000    0.000 {built-in method builtins.len}
+      400    0.000    0.000    0.000    0.000 {built-in method builtins.iter}
+      520    0.000    0.000    0.000    0.000 {method 'append' of 'list' objects}
+       20    0.000    0.000    0.000    0.000 {method 'binomial' of 'numpy.random.mtrand.RandomState' objects}
+       50    0.000    0.000    0.000    0.000 {built-in method numpy.empty}
+       30    0.000    0.000    0.000    0.000 {built-in method builtins.issubclass}
+      400    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}
+       20    0.000    0.000    0.000    0.000 {method 'repeat' of 'numpy.ndarray' objects}
+       70    0.000    0.000    0.000    0.000 {built-in method numpy.asarray}
+       20    0.000    0.000    0.000    0.000 {built-in method numpy.arange}
+      150    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/tree_util.py:320(<listcomp>)
+       20    0.000    0.000    0.000    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/normalizers.py:69(keys)
+       20    0.000    0.000    0.000    0.000 {method 'astype' of 'numpy.ndarray' objects}
+       20    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/abc.py:121(__subclasscheck__)
+       30    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/flax/jax_utils.py:279(<setcomp>)
+       10    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/xla_bridge.py:1015(local_device_count)
+      100    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}
+       90    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/fromnumeric.py:2974(_prod_dispatcher)
+      120    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/shape_base.py:135(_atleast_3d_dispatcher)
+       40    0.000    0.000    0.000    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/datasets/dataset.py:61(__getitem__)
+      120    0.000    0.000    0.000    0.000 {built-in method numpy.asanyarray}
+      110    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+       50    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/jax/_src/array.py:241(dtype)
+       40    0.000    0.000    0.000    0.000 {built-in method builtins.max}
+       20    0.000    0.000    0.000    0.000 {built-in method _abc._abc_subclasscheck}
+       40    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/multiarray.py:153(concatenate)
+       80    0.000    0.000    0.000    0.000 {built-in method builtins.id}
+       40    0.000    0.000    0.000    0.000 {method 'keys' of 'dict' objects}
+       40    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/core/fromnumeric.py:1328(_searchsorted_dispatcher)
+       10    0.000    0.000    0.000    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/scripts/batch_samplers.py:113(<listcomp>)
+       50    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/typing.py:1708(cast)
+       50    0.000    0.000    0.000    0.000 {built-in method builtins.divmod}
+       10    0.000    0.000    0.000    0.000 /home/user/PycharmProjects/tmp/BERTAP_v2/src/scripts/batch_samplers.py:114(<listcomp>)
+       20    0.000    0.000    0.000    0.000 {method 'copy' of 'dict' objects}
+       10    0.000    0.000    0.000    0.000 {built-in method time.time}
+       10    0.000    0.000    0.000    0.000 {method 'conj' of 'numpy.ndarray' objects}
+       10    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/flax/jax_utils.py:305(<dictcomp>)
+       10    0.000    0.000    0.000    0.000 /home/user/anaconda3/envs/jax/lib/python3.10/site-packages/numpy/linalg/linalg.py:2379(_norm_dispatcher)
+       10    0.000    0.000    0.000    0.000 {method 'pop' of 'set' objects}
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+

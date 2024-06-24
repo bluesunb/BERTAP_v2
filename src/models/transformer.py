@@ -41,12 +41,13 @@ class BertEmbedding(nn.Module):
     update_pos_emb: bool = True
 
     @nn.compact
-    def __call__(self, ids: jp.ndarray, type_ids: jp.ndarray, pos_ids: jp.ndarray, train: bool = True):
+    def __call__(self, ids: jp.ndarray, conditions: jp.ndarray, pos_ids: jp.ndarray, train: bool = True):
         ids_emb = nn.Embed(self.vocab_size, self.emb_dim, embedding_init=init_normal, name="ids_emb")(ids)
         pos_emb = nn.Embed(self.max_seq_len, self.emb_dim, embedding_init=init_normal, name="pos_emb")(pos_ids)
-        type_emb = nn.Embed(2, self.emb_dim, embedding_init=init_normal, name="type_emb")(type_ids)
+        cond_emb = nn.Dense(self.emb_dim, kernel_init=init_normal, name="cond_emb")(conditions)
+        cond_emb = nn.tanh(cond_emb)
 
-        emb = nn.LayerNorm(epsilon=EPSILON)(ids_emb + pos_emb + type_emb)
+        emb = nn.LayerNorm(epsilon=EPSILON)(ids_emb + pos_emb + cond_emb)
         emb = nn.Dropout(self.emb_pdrop)(emb, deterministic=not train)
         return emb
 
@@ -115,12 +116,10 @@ class BertModule(nn.Module):
     @nn.compact
     def __call__(self,
                  ids: jp.ndarray,
-                 type_ids: jp.ndarray = None,
+                 conditions: jp.ndarray,
                  pos_ids: jp.ndarray = None,
                  mask: jp.ndarray = None,
                  train: bool = True):
-        if type_ids is None:
-            type_ids = jp.zeros_like(ids)
 
         if pos_ids is None:
             pos_ids = jp.arange(jp.atleast_2d(ids).shape[-1])
@@ -134,7 +133,7 @@ class BertModule(nn.Module):
                             self.config.emb_dim,
                             self.config.emb_pdrop,
                             self.update_pos_emb,
-                            name="bert_emb")(ids, type_ids, pos_ids, train=train)
+                            name="bert_emb")(ids, conditions, pos_ids, train=train)
 
         for _ in range(self.config.n_layers):
             out = TransformerEncoder(self.config.emb_dim,
@@ -191,12 +190,12 @@ class BertWithHeads(nn.Module):
     @nn.compact
     def __call__(self,
                  input_ids: jp.ndarray,
-                 type_ids: jp.ndarray = None,
+                 conditions: jp.ndarray,
                  pos_ids: jp.ndarray = None,
                  mask: jp.ndarray = None,
                  train: bool = True):
         
-        bert_out, pooling_out = BertModule(self.config, add_pooling_layer=True, name="bert")(input_ids, type_ids, pos_ids, mask, train)
+        bert_out, pooling_out = BertModule(self.config, add_pooling_layer=True, name="bert")(input_ids, conditions, pos_ids, mask, train)
         shared_emb = self.variables["params"]["bert"]["bert_emb"]["ids_emb"]["embedding"]
         
         vocab_logits = VocabPredHead(self.config, name="vocab_head")(bert_out, shared_emb)

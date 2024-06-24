@@ -255,18 +255,26 @@ if __name__ == "__main__":
     env_name = "antmaze-large-play-v2"
     model_def = VQVAE
 
-    pmap = True
     log_interval = 20
     save_interval = 2000
     eval_freq = 2
-    use_wandb = False
-    test = True
+    pmap = True
+    use_wandb = True
+    test = False
 
     loader_size = 1000 if test else 0
     batch_size = 256 if test else 512 * 4
+    
+    structure = {"emb_dim": 512,
+                "n_heads": 8,
+                "n_layers": 4,
+                "ff_dim": 512 * 4,
+                "causal": True,
+                "traj_emb_dim": 512,
+                "n_traj_tokens": 360}
         
     kwargs = {
-        "model": {},
+        "model": {"ma_update": False, **structure},
         "dataset": {"goal_conditioned": False, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
         "train": {},
         "loader_size": loader_size
@@ -274,7 +282,7 @@ if __name__ == "__main__":
 
     if pmap:
         main(model_def, env_name,
-             seq_len=64, latent_step=4, batch_size=batch_size, n_epochs=12,
+             seq_len=128, latent_step=4, batch_size=batch_size, n_epochs=12,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:

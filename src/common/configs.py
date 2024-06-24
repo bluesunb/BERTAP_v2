@@ -47,6 +47,7 @@ class ModelConfig(ConfigBase):
 
     # VAE
     seq_len: int = 24           # Length of the subsequence for the transformer
+    # max_seq_len: int = 128      # Maximum length of the sequence for the transformer (Note that this is effective when extending the sequence)
     latent_step: int = 3        # Number of steps to aggregate the latent code
     bottleneck: str = 'conv'    # Type of bottleneck to use for trajectory representation
     goal_conditional: bool = True   # Whether to use a conditional model

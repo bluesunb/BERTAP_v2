@@ -136,7 +136,7 @@ def train_prior(state: TrainState,
     epoch_bar = tqdm(range(n_epochs), desc="Epochs", ncols=120, position=0)
     eval_logger = TabularLogger(["Step", "Eval Loss", "MLM Acc"], pbar=epoch_bar)
     for epoch in epoch_bar:
-        pbar = tqdm(range(loader_size), desc=f"Epoch [{epoch + 1}/{n_epochs}]", ncols=120, position=1)
+        pbar = tqdm(range(loader_size), desc=f"Epoch [{epoch + 1}/{n_epochs}]", ncols=120, position=1, leave=False)
         for step in pbar:
             batch = sample_batch_fn(pmap=False, return_conditioned=True, rng=rng)
             rng, device_rng = jax.random.split(rng)
