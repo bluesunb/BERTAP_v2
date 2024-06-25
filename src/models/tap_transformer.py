@@ -43,7 +43,7 @@ class TAPWithHeads(nn.Module):
         if mask is None:
             mask = jp.ones((1, input_ids.shape[1], 1), dtype=input_ids.dtype)
         
-        out = TAPEmbedding(self.config.vocab_size, self.config.seq_len, self.config.emb_dim, self.config.emb_pdrop)(input_ids[:, :-1], condition, train)
+        out = TAPEmbedding(self.config.vocab_size, self.config.max_seq_len, self.config.emb_dim, self.config.emb_pdrop)(input_ids[:, :-1], condition, train)
             
         for _ in range(self.config.n_layers):
             out = TransformerEncoder(self.config.emb_dim,

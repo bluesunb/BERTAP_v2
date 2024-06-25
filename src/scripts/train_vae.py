@@ -259,7 +259,7 @@ if __name__ == "__main__":
     save_interval = 2000
     eval_freq = 2
     pmap = True
-    use_wandb = True
+    use_wandb = False
     test = False
 
     loader_size = 1000 if test else 0

@@ -89,7 +89,7 @@ class TransformerModule(nn.Module):
 
     @nn.compact
     def __call__(self, x: jp.ndarray, mask: jp.ndarray = None, train: bool = True):
-        x_emb = TransformerEmbedding(self.config.seq_len,
+        x_emb = TransformerEmbedding(self.config.max_seq_len,
                                      self.config.emb_dim,
                                      self.config.emb_pdrop,
                                      update_pos_emb=self.update_pos_emb)(x, train)
@@ -129,7 +129,7 @@ class BertModule(nn.Module):
             mask = jp.ones_like(ids)[..., None]
 
         out = BertEmbedding(self.config.vocab_size,
-                            self.config.seq_len,
+                            self.config.max_seq_len,
                             self.config.emb_dim,
                             self.config.emb_pdrop,
                             self.update_pos_emb,
