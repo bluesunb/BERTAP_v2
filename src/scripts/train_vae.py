@@ -143,7 +143,8 @@ def train_vae(state: TrainState,
                 logger.log({"lr": last_lr}, global_step)
             
             if save_interval > 0 and global_step % save_interval == 0:
-                name = f"checkpoint-{str(epoch).zfill(3)}-{str(global_step).zfill(4)}"
+                # name = f"checkpoint-{str(epoch).zfill(3)}-{str(global_step).zfill(4)}"
+                name = f"checkpoint"
                 save_state(state, configs.train_config.save_dir / name, global_step)
 
             if eval_freq > 0 and (step + 1) % (loader_size // eval_freq) == 0:
@@ -241,7 +242,8 @@ def main(model_def: type[VQVAE],
                       **kwargs)
     
     # Save final model ========
-    save_state(state, configs.train_config.save_dir / "checkpoint-final", total_steps)
+    # save_state(state, configs.train_config.save_dir / "checkpoint-final", total_steps)
+    save_state(state, configs.train_config.save_dir / "checkpoint", total_steps)
     state = flax.jax_utils.unreplicate(state)
     configs.save(configs.train_config.save_dir)
     pickle.dump({"params": state.params, **state.extra_variables}, open(save_dir / "model_params.pkl", "wb"))
@@ -286,8 +288,8 @@ if __name__ == "__main__":
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:
-        jax.config.update("jax_platform_name", "cpu")
-        chex.set_n_cpu_devices(4)
+        # jax.config.update("jax_platform_name", "cpu")
+        # chex.set_n_cpu_devices(4)
         with chex.fake_pmap_and_jit():
             main(model_def, env_name,
                  seq_len=64, latent_step=4, batch_size=64, n_epochs=9,

@@ -78,7 +78,7 @@ class VQVAE(nn.Module):
         quantized, info = self.quantize(x_enc, train=train)
         return quantized, info
     
-    def __call__(self, traj_seq: jp.ndarray, masks: jp.ndarray, train: bool = True):
+    def __call__(self, traj_seq: jp.ndarray, masks: jp.ndarray, train: bool = None):
         train = nn.merge_param('training', self.training, train)
         condition = traj_seq[:, 0, :self.config.goal_dim + self.config.observation_dim]
 
