@@ -110,7 +110,10 @@ def eval_step(state: TrainState, batch: jp.ndarray, rng: jp.ndarray, config: Mod
     mlm_acc = jp.mean((mlm_preds == mlm_labels) * label_mask)
     nsp_acc = jp.mean(nsp_preds == nsp_labels)
     
-    metrics = {"loss": loss, "mlm_acc": mlm_acc, "nsp_acc": nsp_acc}
+    nsp_probs = jax.nn.softmax(nsp_logits, axis=-1)
+    nsp_entropy = -jp.sum(nsp_probs * jp.log(nsp_probs), axis=-1).mean()
+    
+    metrics = {"loss": loss, "mlm_acc": mlm_acc, "nsp_acc": nsp_acc, "nsp_entropy": nsp_entropy}
     metrics = jax.lax.pmean(metrics, axis_name=pmap_axis)
     return metrics
 
@@ -163,7 +166,8 @@ def train_prior(state: TrainState,
                 logger.log({"lr": last_lr, **info}, global_step)
                 
             if save_interval > 0 and global_step % save_interval == 0:
-                name = f"checkpoint-{str(epoch).zfill(3)}-{str(global_step).zfill(4)}"
+                # name = f"checkpoint-{str(epoch).zfill(3)}-{str(global_step).zfill(4)}"
+                name = f"checkpoint"
                 save_state(state, configs.train_config.save_dir / name, global_step)
                 
             if eval_freq > 0 and (step + 1) % (loader_size // eval_freq) == 0:
@@ -250,7 +254,8 @@ def main(model_def: type[VQVAE],
                         **kwargs)
     
     # Save final model =======
-    save_state(state, save_dir / "checkpoint-final", total_steps)
+    # save_state(state, save_dir / "checkpoint-final", total_steps)
+    save_state(state, configs.train_config.save_dir / "checkpoint", total_steps)
     state = flax.jax_utils.unreplicate(state)
     configs.save(save_dir)
     pickle.dump({"params": state.params, **state.extra_variables}, open(save_dir / "model_params.pkl", "wb"))
@@ -266,24 +271,24 @@ if __name__ == "__main__":
     jax.config.update("jax_debug_nans", True)
     
     model_def = BertWithHeads
-    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0617-1620"
+    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0625-1317"
     
     log_interval = 20
     save_interval = 2000
     eval_freq = 5
     pmap = True
-    use_wandb = False
+    use_wandb = True
     test = False
     
     loader_size = 1000 if test else 0
-    batch_size = 256 if test else 1028 * 4
+    batch_size = 256 if test else 720 * 4
     
-    structure = {"emb_dim": 128,
+    structure = {"emb_dim": 256,
                  "n_heads": 8,
                  "n_layers": 4,
-                 "ff_dim": 128 * 4,
+                 "ff_dim": 256 * 4,
                  "causal": False,
-                 "nsp_weight": 0.1,
+                 "nsp_weight": 0.25,
                  "use_nsp": True}
     
     kwargs = {

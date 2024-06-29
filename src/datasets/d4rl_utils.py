@@ -7,6 +7,7 @@ __convolve = np.vectorize(np.convolve, excluded=[1, "mode"], signature="(a)->(b)
 
 
 def make_env(env_name: str):
+    import d4rl
     wrapped_env = gym.make(env_name)
     env = wrapped_env.unwrapped
     env.max_episode_steps = wrapped_env._max_episode_steps

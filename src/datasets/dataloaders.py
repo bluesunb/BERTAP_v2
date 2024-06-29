@@ -1,3 +1,5 @@
+import warnings
+
 import jax
 import jax.tree_util as jtr
 import numpy as np
@@ -173,15 +175,36 @@ class AntDataLoader(TrajDataLoader):
 class AntMLMDataLoader(AntDataLoader):
     def __post_init__(self):
         # assert self.goal_conditioned, "AntMLMDataLoader must be goal conditioned"
+        if not self.goal_conditioned:
+            warnings.warn("[AntMLMDataLoader] goal_conditioned is False. We set it True.")
+        
+        if not self.hierarchical_goal:
+            warnings.warn("[AntMLMDataLoader] hierarchical_goal is False. We set it True.")
+        
         self.hierarchical_goal_orig = self.hierarchical_goal
         self.goal_conditioned_orig = self.goal_conditioned
         self.hierarchical_goal = True
         self.goal_conditioned = True
         return super().__post_init__()
     
+    def sample_ids_pair(self, batch_size: int = 1):
+        starts1 = np.random.randint(0, len(self.valid_ids), size=batch_size)
+        noise = np.random.normal(0, 500, size=batch_size)
+        starts2 = np.clip((starts1 + noise).astype(int), 0, len(self.valid_ids) - 1)
+        
+        temperature = 0.2
+        starts2 = np.where(np.random.rand(batch_size) < temperature,
+                           np.random.randint(0, len(self.valid_ids), size=batch_size),
+                           starts2)
+        
+        starts1 = self.valid_ids[starts1]
+        starts2 = self.valid_ids[starts2]
+        return super().sample(starts=starts1), super().sample(starts=starts2)
+    
     def sample(self, batch_size: int = 1, starts: np.ndarray = None):
-        batch1 = super().sample(batch_size, starts)
-        batch2 = super().sample(batch_size, starts)
+        # batch1 = super().sample(batch_size, starts)
+        # batch2 = super().sample(batch_size, starts)
+        batch1, batch2 = self.sample_ids_pair(batch_size)
         
         goals1 = batch1["goals"][..., 0, -self.goal_dim:]   # true goals
         goals2 = batch2["goals"][..., 0, -self.goal_dim:]   # true goals
@@ -196,41 +219,3 @@ class AntMLMDataLoader(AntDataLoader):
             batch2["goals"] = batch2["goals"][..., -self.goal_dim // 2:]
             
         return batch1, batch2, nsp_labels
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from src.datasets.d4rl_utils import make_env, get_dataset
-    from src.utils.ant_viz import GoalReachingAnt
-    
-    env_name = 'antmaze-large-play-v2'
-    env = make_env(env_name)
-    render_env = GoalReachingAnt(env_name)
-    dataset = get_dataset(env, env_name)
-    ant_loader = AntDataLoader(dataset=dataset,
-                               seq_len=64,
-                               min_valid_len=64,
-                               terminal_key='dones_float',
-                               goal_conditioned=True,
-                               p_true_goal=0.0,
-                               p_sub_goal=0.1,
-                               hierarchical_goal=False)
-
-    def check(i):
-        # idx = np.arange(ant_loader.terminal_ids[i], ant_loader.terminal_ids[i + 1]) + 1
-        # batch = ant_loader.dataset.get_subset(idx)
-        start = ant_loader.terminal_ids[i] + 1
-        batch = ant_loader.sample(starts=np.array([start]))
-        render_env.draw()
-        c = np.linspace(0, 1, batch["observations"].shape[-2])
-        pos = batch["observations"][..., :2]
-        goal = batch["goals"][..., :2]
-        
-        plt.scatter(*pos.T, c=c, s=10, alpha=0.5, zorder=1)
-        plt.scatter(*goal.T, c='r', s=100, edgecolors='k', marker='*', alpha=0.8, zorder=2)
-        plt.show(block=True)
-        
-    check(20)
-    check(20)
-    check(30)
-    check(30)
