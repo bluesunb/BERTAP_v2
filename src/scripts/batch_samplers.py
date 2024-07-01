@@ -155,6 +155,10 @@ class MLMDataCollator:
     configs: ModelConfig
     seed: Optional[int] = 0
 
+    def __post_init__(self):
+        assert self.configs.modify_prob > 0.0, \
+            "MLMDataCollator: modify_prob must be greater than 0.0, if not, n_labels will be 0 that will make nan error"
+
     def __call__(
         self, 
         batch1: Dict[str, jp.ndarray], 

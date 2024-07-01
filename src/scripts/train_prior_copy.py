@@ -45,7 +45,7 @@ def make_schedule_fn(train_config: TrainConfig, **schedule_kwargs) -> optax.Sche
     def bert_warmup(init_value: float, warmup_steps: int, **kwargs):
         def schedule_fn(step: int):
             scale = jp.minimum(jp.power(step, -0.5) , jp.power(warmup_steps, -1.5) * step)
-            return scale * init_value
+            return scale * init_value + 1e-8
         return schedule_fn
     
     if train_config.scheduler_name == "constant":
@@ -154,15 +154,13 @@ def train_prior(state: TrainState,
                 logger.log({"lr": last_lr, **info}, global_step)
                 
             if save_interval > 0 and global_step % save_interval == 0:
-                name = f"checkpoint-{str(epoch).zfill(3)}-{str(global_step).zfill(4)}"
+                # name = f"checkpoint-{str(epoch).zfill(3)}-{str(global_step).zfill(4)}"
+                name = "checkpoint"
                 save_state(state, configs.train_config.save_dir / name, global_step)
                 
             if eval_freq > 0 and (step + 1) % (loader_size // eval_freq) == 0:
                 rng, device_rng = jax.random.split(rng)
                 device_rng = shard_prng_key(device_rng)
-
-                # with chex.fake_pmap_and_jit():
-                    # eval_info = eval_step_fn(state, eval_batch, device_rng)
                 eval_info = eval_step_fn(state, eval_batch, device_rng)
                 eval_info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(eval_info, sep='/'))
                 logger.log(eval_info, global_step, prefix="Eval")
@@ -243,7 +241,8 @@ def main(model_def: type[VQVAE],
                         **kwargs)
     
     # Save final model =======
-    save_state(state, save_dir / "checkpoint-final", total_steps)
+    # save_state(state, save_dir / "checkpoint-final", total_steps)
+    save_state(state, configs.train_config.save_dir / "checkpoint", total_steps)
     state = flax.jax_utils.unreplicate(state)
     configs.save(save_dir)
     pickle.dump({"params": state.params, **state.extra_variables}, open(save_dir / "model_params.pkl", "wb"))
@@ -257,31 +256,31 @@ if __name__ == "__main__":
     import os
     from src.models.tap_transformer import TAPWithHeads
     
-    jax.config.update('jax_debug_nans', True)
+    jax.config.update("jax_debug_nans", True)
     
     model_def = TAPWithHeads
-    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0617-1754"
+    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0625-1317"
     
     log_interval = 20
     save_interval = 2000
     eval_freq = 5
     pmap = True
-    use_wandb = False
+    use_wandb = True
     test = False
     
     loader_size = 5 if test else 0
     batch_size = 256 if test else 512 * 4
     
-    structure = {"emb_dim": 128,
+    structure = {"emb_dim": 256,
                  "n_heads": 8,
                  "n_layers": 4,
-                 "ff_dim": 128 * 4,
+                 "ff_dim": 256 * 4,
                  "causal": True,
                  "nsp_weight": 0.0,
                  "use_nsp": False}
     
     kwargs = {
-        "model": {"modify_prob": 1.0, "mask_prob": 0.0, "random_prob": 0.0,
+        "model": {"modify_prob": 0.0, "mask_prob": 0.0, "random_prob": 0.0,
                   "n_special_tokens": 3, "vae_path": vae_path,
                   **structure},
         "dataset": {},
@@ -290,7 +289,7 @@ if __name__ == "__main__":
     }
     
     if pmap:
-        main(model_def, vae_path, batch_size=batch_size, n_epochs=7,
+        main(model_def, vae_path, batch_size=batch_size, n_epochs=10,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:

@@ -139,8 +139,9 @@ class BertModule(nn.Module):
             out = TransformerEncoder(self.config.emb_dim,
                                      self.config.n_heads,
                                      self.config.ff_dim,
-                                     self.config.attn_pdrop,
-                                     self.config.resid_pdrop)(out, mask, train=train)
+                                     causal=False,
+                                     attn_pdrop=self.config.attn_pdrop,
+                                     resid_pdrop=self.config.resid_pdrop)(out, mask, train=train)
 
         if self.add_pooling_layer:
             pooled_out = out[:, 0]
