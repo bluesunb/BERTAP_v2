@@ -11,5 +11,5 @@ fi
 
 # if --pull
 if [ "$1" == "--pull" ]; then
-    scp -rP 22 user@16.104.112.89:$REMOTE_PATH/* $LOCAL_PATH
+    scp -rP 22 user@166.104.112.89:$REMOTE_PATH/* $LOCAL_PATH
 fi

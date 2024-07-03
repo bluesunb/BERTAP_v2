@@ -82,8 +82,8 @@ def get_dataset(env: gym.Env,
         
         dataset = new_dataset
         
-    def antmaze_preprocess(dataset, fit_goal: bool = True):
-        print(f"==== [Fixing terminal for AntMaze] ====")
+    def antmaze_preprocess(dataset, **kwargs):
+        print(f"{'[Fixing reward for AntMaze]':-^50}")
         dones_float = np.zeros_like(dataset["rewards"])
         dataset["terminals"][:] = 0
         
@@ -95,7 +95,7 @@ def get_dataset(env: gym.Env,
         dones_float[:-1] = ep_changed
         dones_float[-1] = 1
         
-        if fit_goal and "goals" in dataset:
+        if kwargs.get("fit_goal", False) and "goals" in dataset:
             k = np.ones(10) / 10
             mean_obs = __convolve(dataset["observations"][..., :2].T, k, mode="full").T[: len(dataset["observations"])]
             mean_obs = (mean_obs * dones_float[:, None])[dones_float == 1]
@@ -104,8 +104,40 @@ def get_dataset(env: gym.Env,
         
         return dones_float, dataset
     
+    def maze2d_preprocess(dataset, **kwargs):
+        print(f"{'[Fixing reward for Maze2D]':-^50}")
+        dones_float = np.zeros_like(dataset["rewards"])
+        ep_unchanged = np.linalg.norm(
+            dataset["goals"][1:] - dataset["goals"][:-1], axis=-1
+        ) > 1e-6
+        
+        dones_float[:-1] = ep_unchanged.astype(np.float32)
+        dones_float[-1] = 1
+        
+        print(f"{'[Fixing last goal for Maze2D]':-^50}")
+        last_term_id = np.where(dones_float)[0][-2]
+        dataset["goals"][last_term_id:] = dataset["goals"][-1] + np.random.randn(2) * 1e-6
+        
+        print(f"{'[Transposing xy for Maze2D]':-^50}")
+        # For visualization purposes and consistency with the AntMazeEnv,
+        # we flip the x and y coordinates of the observations and actions
+        tmp_obs = dataset["observations"].reshape(-1, 2)
+        tmp_obs = np.fliplr(tmp_obs).reshape(dataset["observations"].shape)
+        dataset["observations"] = tmp_obs
+        dataset["actions"] = np.fliplr(dataset["actions"])
+        
+        if "goals" in dataset:
+            dataset["goals"] = np.fliplr(dataset["goals"])
+
+        print(f"{'[Fixing reward for Maze2D]':-^50}")
+        dataset["rewards"] = dones_float.copy()
+            
+        return dones_float, dataset
+    
     if "antmaze" in env_name:
         dones_float, dataset = antmaze_preprocess(dataset)
+    elif "maze2d" in env_name:
+        dones_float, dataset = maze2d_preprocess(dataset)
     else:
         dones_float = dataset["terminals"].copy()
         

@@ -9,6 +9,7 @@ from functools import partial
 from itertools import product, cycle
 
 from d4rl.locomotion.ant import AntMazeEnv
+from d4rl.pointmaze import MazeEnv
 
 
 def get_canvas_image(canvas: FigureCanvasAgg):
@@ -36,7 +37,10 @@ def valid_goal_sampler(env: AntMazeEnv, np_random: np.random.RandomState):
 class GoalReachingAnt(gym.Wrapper):
     def __init__(self, env_name: str):
         self.env: AntMazeEnv = gym.make(env_name)
-        self.env.env.env._wrapped_env.goal_sampler = partial(valid_goal_sampler, self.env.env.env._wrapped_env)
+        if hasattr(self.env.env.env, '_wrapped_env'):
+            self.env.env.env._wrapped_env.goal_sampler = partial(valid_goal_sampler, self.env.env.env._wrapped_env)
+        else:
+            self.env.env.env.goal_sampler = partial(valid_goal_sampler, self.env.env.env)
         self.observation_space = gym.spaces.Dict({'observation': self.env.observation_space,
                                                   'goal': self.observation_space})
         self.action_space = self.env.action_space
@@ -106,6 +110,36 @@ class GoalReachingAnt(gym.Wrapper):
 
         ax.set_xlim(0 + 0.1 * scale - torso_x, len(env._maze_map[0]) * scale - 1.1 * scale - torso_x)
         ax.set_ylim(0 + 0.1 * scale - torso_y, len(env._maze_map) * scale - 1.1 * scale - torso_y)
+        ax.axis('off')
+        
+        
+class GoalReachingMaze(GoalReachingAnt):
+    def get_starting_boundary(self):
+        env: MazeEnv = self.env.env.env
+        init_x, init_y = env.init_qpos[:2]
+        scale = 1.0
+        
+        bottom_left = (0 + 0.5 * scale - init_x, 0 + 0.5 * scale - init_y)
+        top_right = ((env.maze_arr.shape[1] - 1.5) * scale - init_x, (env.maze_arr.shape[0] - 1.5) * scale - init_y)
+        return bottom_left, top_right
+    
+    def draw(self, ax=None):
+        if not ax:
+            ax = plt.gca()
+        
+        env: MazeEnv = self.env.env.env
+        init_x, init_y = env.init_qpos[:2]
+        scale = 1.0
+        
+        map = np.array(env.maze_arr)
+        for i, j in np.argwhere(map == 10):
+            rect = patches.Rectangle(xy=(j * scale - init_x - 0.5 * scale, i * scale - init_y - 0.5 * scale),
+                                     width=scale, height=scale,
+                                     linewidth=1, edgecolor='none', facecolor='grey', alpha=1.0)
+            ax.add_patch(rect)
+            
+        ax.set_xlim(0 + 0.1 * scale - init_x, env.maze_arr.shape[1] * scale - 1.1 * scale - init_x)
+        ax.set_ylim(0 + 0.1 * scale - init_y, env.maze_arr.shape[0] * scale - 1.1 * scale - init_y)
         ax.axis('off')
 
 

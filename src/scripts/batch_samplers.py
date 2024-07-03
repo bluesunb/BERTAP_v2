@@ -138,7 +138,7 @@ def mlm_batch_sampler(
 class GPTDataCollator:
     tokenizer: VQVAE
     params: flax.core.FrozenDict
-    configs: ModelConfig
+    configs: ModelConfig = None
     seed: Optional[int] = 0
     
     def __call__(self, batch: Dict[str, jp.ndarray], rng: jp.ndarray = None) -> Dict[str, np.ndarray]:
@@ -230,67 +230,3 @@ class MLMDataCollator:
 
         labels = jp.where(modifying_flags, labels, -100)
         return input_ids, labels
-
-
-if __name__ == "__main__":
-    import optax
-    from src.scripts.vae_prepare import prepare_config_dataset as prepare_config_dataset_vae
-    from src.scripts.prior_prepare import prepare_config_dataset as prepare_config_dataset_mlm
-    from src.utils.context import load_state
-    from src.common.configs import ModelConfig
-    from pathlib import Path
-    
-    import io
-    from cProfile import Profile
-    from pstats import Stats
-    
-    save_path = Path.home() / "PycharmProjects/tmp/BERTAP_v2/save/BERTAP_VAE-0617-1754"
-    loader, prior_configs, vae_params, vae_configs = prepare_config_dataset_mlm(save_path, batch_size=4, n_epochs=10)
-    collator = MLMDataCollator(VQVAE(vae_configs.model_config, training=False), vae_params, prior_configs.model_config)
-    sampler_fn, (normalizer, splits) = mlm_batch_sampler(loader, 4, collator, normalize=True)
-    
-    batch = sampler_fn()
-
-    # profiler = Profile()
-    # profiler.enable()
-
-    import time
-    for i in range(10):
-        st = time.time()
-        batch = sampler_fn()
-        print(f"Time: {time.time() - st:.4f}s")
-    
-    print("Done")
-    
-    # profiler.disable()
-    # stream = io.StringIO()
-    # stats = Stats(profiler, stream=stream).sort_stats("cumtime")
-    # stats.print_stats()
-    
-    # save to file
-    # with open("mlm_batch_sampler.prof", "w") as f:
-    #     f.write(stream.getvalue())
-    
-    loader, _ = prepare_config_dataset_vae('antmaze-large-play-v2', seq_len=vae_configs.data_config.seq_len, latent_step=vae_configs.model_config.latent_step, batch_size=4, n_epochs=10)
-    collator = GPTDataCollator(VQVAE(vae_configs.model_config, training=False), vae_params, prior_configs.model_config)
-    sampler_fn, (normalizer, splits) = gpt_batch_sampler(loader, 4, collator, normalize=True)
-    
-    batch = sampler_fn()
-    
-    # profiler = Profile()
-    # profiler.enable()
-    
-    for i in range(10):
-        st = time.time()
-        batch = sampler_fn()
-        print(f"Time: {time.time() - st:.4f}s")
-        
-    print("Done")
-    
-    # profiler.disable()
-    # stream = io.StringIO()
-    # stats = Stats(profiler, stream=stream).sort_stats("cumtime")
-    # stats.print_stats()
-    
-    # with open("gpt_batch_sampler.prof", "w") as f:
-    #     f.write(stream.getvalue())
