@@ -76,7 +76,7 @@ def prepare_config_dataset(env_name: str,
 
     model_config.update(**kwargs.get("model", {}))
 
-    train_config = TrainConfig(exp_name=f'BERTAP_VAE-{get_now_str()}',
+    train_config = TrainConfig(exp_name=f'BERTAP_VAE',
                                batch_size=batch_size,
                                n_epochs=n_epochs,
                                learning_rate=8e-4,
@@ -85,6 +85,7 @@ def prepare_config_dataset(env_name: str,
                                weight_decay=1e-1)
     
     train_config.update(**kwargs.get("train", {}))
+    train_config.update(exp_name=f'{train_config.exp_name}-{get_now_str()}')
 
     configs = TotalConfigs(data_config, model_config, train_config)
     return dataset, configs

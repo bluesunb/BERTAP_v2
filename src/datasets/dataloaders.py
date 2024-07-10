@@ -188,8 +188,9 @@ class AntMLMDataLoader(AntDataLoader):
         return super().__post_init__()
     
     def sample_ids_pair(self, batch_size: int = 1):
+        """Sample id pairs with balanced positive and negative samples."""
         starts1 = np.random.randint(0, len(self.valid_ids), size=batch_size)
-        noise = np.random.normal(0, 500, size=batch_size)
+        noise = np.random.normal(0, 500, size=batch_size)   # perturb to sample different trajectories
         starts2 = np.clip((starts1 + noise).astype(int), 0, len(self.valid_ids) - 1)
         
         temperature = 0.2

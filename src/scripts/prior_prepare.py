@@ -59,7 +59,7 @@ def prepare_config_dataset(vae_path: Path,
     ))
     model_config.update(**kwargs.get("model", {}))
     
-    train_config = TrainConfig(exp_name=f"BERTAP_MLM-{get_now_str()}",
+    train_config = TrainConfig(exp_name=f"BERTAP_MLM",
                                batch_size=batch_size,
                                n_epochs=n_epochs,
                                learning_rate=3e-4,
@@ -67,7 +67,9 @@ def prepare_config_dataset(vae_path: Path,
                                grad_norm_clip=1.0,
                                betas=(0.9, 0.98),
                                weight_decay=0.01)
+    
     train_config.update(**kwargs.get("train", {}))
+    train_config.update(exp_name=f"{train_config.exp_name}-{get_now_str()}")
     
     configs = TotalConfigs(data_config, model_config, train_config)
     return dataset, configs, vae_params, vae_config

@@ -1,3 +1,4 @@
+import pickle
 import os, shutil
 import flax.jax_utils
 import jax, jax.numpy as jp
@@ -23,6 +24,11 @@ def load_state(path: Union[str, Path]) -> TrainState:
     state_dict = checkpoints.restore_checkpoint(path)
     state = TrainState.create(**state_dict)
     return state
+
+
+def load_params(path: Union[str, Path]) -> Dict[str, jp.ndarray]:
+    params = pickle.load(open(os.path.join(path, "model_params.pkl"), 'rb'))
+    return params
 
 
 def make_rngs(rng: jp.ndarray,

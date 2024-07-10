@@ -203,7 +203,7 @@ def compare_recons(logger: Logger,
             c = np.linspace(0, 1, len(pos))
             ax.scatter(pos[~mask][:, 0], pos[~mask][:, 1], s=10, c=c[~mask], alpha=0.5, zorder=1)   # plot positions
             if goal_conditioned:
-                ax.scatter(*goal, s=500, c='r', edgecolors='k', marker='*', alpha=0.8, zorder=3)    # plot goal
+                ax.scatter(*goal, s=100, c='r', edgecolors='k', marker='*', alpha=0.8, zorder=3)    # plot goal
 
             tmp_xlim = np.array(ax.get_xlim())
             tmp_ylim = np.array(ax.get_ylim())

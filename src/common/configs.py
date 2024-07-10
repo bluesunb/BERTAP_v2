@@ -28,10 +28,10 @@ class ModelConfig(ConfigBase):
 
     # BERT
     n_special_tokens: int = 4   # Number of special tokens for the BERT model
-    _cls_token: int = 0          # Token for the classification
-    _mask_token: int = 1         # Token for masking
-    _sep_token: int = 2          # Token for separating sequences
-    _pad_token: int = 3          # Token for padding
+    _cls_token: int = 0         # Token for the classification
+    _mask_token: int = 1        # Token for masking
+    _sep_token: int = 2         # Token for separating sequences
+    _pad_token: int = 3         # Token for padding
     shift: int = 0              # Shift for the trajectory tokens, token=`shift` is token=0
     modify_prob: float = 0.15   # Probability of modifying the input sequence
     mask_prob: float = 0.7      # Probability of masking a token
@@ -46,20 +46,20 @@ class ModelConfig(ConfigBase):
     ma_update: bool = True      # Whether to update the moving average of the codebook
 
     # VAE
-    seq_len: int = 24           # Length of the subsequence for the transformer
-    max_seq_len: int = 128      # Maximum length of the sequence for the transformer (Note that this is effective when extending the sequence)
-    latent_step: int = 3        # Number of steps to aggregate the latent code
-    bottleneck: str = 'conv'    # Type of bottleneck to use for trajectory representation
+    seq_len: int = 24               # Length of the subsequence for the transformer
+    max_seq_len: int = 128          # Maximum length of the sequence for the transformer (Note that this is effective when extending the sequence)
+    latent_step: int = 3            # Number of steps to aggregate the latent code
+    bottleneck: str = 'conv'        # Type of bottleneck to use for trajectory representation
     goal_conditional: bool = True   # Whether to use a conditional model
-    multi_modal: bool = False   # Whether to use separated modalities for the input
-    enc_gc: bool = True         # Whether to use the goal-conditioned encoder
-    dec_gc: bool = True         # Whether to use the goal-conditioned decoder
+    multi_modal: bool = False       # Whether to use separated modalities for the input
+    enc_gc: bool = True             # Whether to use the goal-conditioned encoder
+    dec_gc: bool = True             # Whether to use the goal-conditioned decoder
 
     # Masking
-    n_transition_mask: int = 0  # Number of masks to apply to the input transitions
-    n_latent_mask: int = 1      # Number of masks to apply to the latent code
+    n_transition_mask: int = 0      # Number of masks to apply to the input transitions
+    n_latent_mask: int = 1          # Number of masks to apply to the latent code
     min_transition_mask: int = 0    # Minimum number of masks to apply to the input transitions
-    min_latent_mask: int = 1    # Minimum number of masks to apply to the latent code
+    min_latent_mask: int = 1        # Minimum number of masks to apply to the latent code
     mask_schedule: str = 'cosine'   # Schedule for the mask annealing
 
     # Sampling

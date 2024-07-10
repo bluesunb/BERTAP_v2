@@ -13,7 +13,7 @@ from src.models.vae import VQVAE
 from src.common.configs import TotalConfigs, DatasetConfig, ModelConfig, TrainConfig
 from src.datasets import AntDataLoader, AntNormalizer, make_env
 from src.utils.train_state import TrainState
-from src.utils.ant_viz import GoalReachingAnt
+from src.utils.ant_viz import GoalReachingAnt, GoalReachingMaze
 from src.utils.logging_utils import Logger, compare_recons
 from src.utils.context import make_rngs, save_state
 from src.scripts.vae_prepare import prepare_config_dataset, prepare_states
@@ -95,7 +95,7 @@ def train_vae(state: TrainState,
               eval_step_fn: callable,
               sample_batch_fn: callable,
               dataloader: AntDataLoader,
-              render_env: GoalReachingAnt,
+              render_env: GoalReachingAnt | GoalReachingMaze,
               logger: Logger,
               eval_batch: jp.ndarray = None,
               log_interval: int = -1,
@@ -184,7 +184,7 @@ def main(model_def: type[VQVAE],
     
     # Prepare config and dataset ========
     dataloader, configs = prepare_config_dataset(env_name, seq_len, latent_step, batch_size, n_epochs, **kwargs)
-    render_env = GoalReachingAnt(env_name)
+    render_env = GoalReachingAnt(env_name) if env_name.startswith("ant") else GoalReachingMaze(env_name)
     n_devices = jax.device_count()
 
     # Data sampler ========
@@ -192,7 +192,8 @@ def main(model_def: type[VQVAE],
                                                               normalize=True, hierarchical_goal=configs.data_config.hierarchical_goal)
 
     # Eval batch ========
-    eval_starts = np.arange(4) * dataloader.seq_len + 21 * 1000
+    # eval_starts = np.arange(4) * dataloader.seq_len + 21 * 1000
+    eval_starts = np.arange(4) * dataloader.seq_len + dataloader.terminal_ids[21] + 1
     eval_batch = sample_batch_fn(starts=eval_starts, pmap=False)
     eval_batch = jtr.tree_map(lambda x: np.expand_dims(x, axis=0).repeat(n_devices, axis=0), eval_batch)
     eval_batch = jtr.tree_map(lambda x: x.reshape(-1, *x.shape[2:]), eval_batch)
@@ -254,37 +255,38 @@ def main(model_def: type[VQVAE],
 
 if __name__ == "__main__":
     import chex
-    env_name = "antmaze-large-play-v2"
+    # env_name = "antmaze-large-play-v2"
+    env_name = "maze2d-large-v1"
     model_def = VQVAE
 
     log_interval = 20
     save_interval = 2000
     eval_freq = 2
     pmap = True
-    use_wandb = False
+    use_wandb = True
     test = False
 
     loader_size = 1000 if test else 0
     batch_size = 256 if test else 512 * 4
     
-    structure = {"emb_dim": 512,
-                "n_heads": 8,
-                "n_layers": 4,
-                "ff_dim": 512 * 4,
+    structure = {"emb_dim": 256,
+                "n_heads": 4,
+                "n_layers": 3,
+                "ff_dim": 256 * 4,
                 "causal": True,
-                "traj_emb_dim": 512,
+                "traj_emb_dim": 256,
                 "n_traj_tokens": 360}
         
     kwargs = {
         "model": {"ma_update": False, **structure},
-        "dataset": {"goal_conditioned": False, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
-        "train": {},
+        "dataset": {"goal_conditioned": True, "hierarchical_goal": False, "p_true_goal": 1.0, "p_sub_goal": 0.0},
+        "train": {"exp_name": "BERTAP_VAE_MAZE"},
         "loader_size": loader_size
     }
 
     if pmap:
         main(model_def, env_name,
-             seq_len=128, latent_step=4, batch_size=batch_size, n_epochs=12,
+             seq_len=128, latent_step=4, batch_size=batch_size, n_epochs=10,
              log_interval=log_interval, save_interval=save_interval, eval_freq=eval_freq, use_wandb=use_wandb, **kwargs)
         
     else:

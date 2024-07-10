@@ -107,7 +107,8 @@ def eval_step(state: TrainState, batch: jp.ndarray, rng: jp.ndarray, config: Mod
     mlm_preds = jp.argmax(mlm_logits, axis=-1)
     nsp_preds = jp.argmax(nsp_logits, axis=-1)
     
-    mlm_acc = jp.mean((mlm_preds == mlm_labels) * label_mask)
+    # mlm_acc = jp.mean((mlm_preds == mlm_labels) * label_mask)
+    mlm_acc = jp.sum((mlm_preds == mlm_labels) * label_mask) / label_mask.sum()
     nsp_acc = jp.mean(nsp_preds == nsp_labels)
     
     nsp_probs = jax.nn.softmax(nsp_logits, axis=-1)
@@ -146,7 +147,7 @@ def train_prior(state: TrainState,
     global_step = flax.jax_utils.unreplicate(state.step).item()
     
     epoch_bar = tqdm(range(n_epochs), desc="Epochs", ncols=120, position=0)
-    eval_logger = TabularLogger(["Step", "Eval Loss", "MLM Acc", "NSP Acc"], pbar=epoch_bar)
+    eval_logger = TabularLogger(["Step", "Eval Loss", "MLM Acc", "NSP Acc", "NSP Gvn"], pbar=epoch_bar)
     for epoch in epoch_bar:
         pbar = tqdm(range(loader_size), desc=f"Epoch [{epoch + 1}/{n_epochs}]", ncols=120, position=1, leave=False)
         for step in pbar:
@@ -180,7 +181,8 @@ def train_prior(state: TrainState,
                 eval_logger.log(step=global_step,
                                 eval_loss=eval_info["loss"].item(),
                                 mlm_acc=eval_info["mlm_acc"].item(),
-                                nsp_acc=eval_info["nsp_acc"].item())
+                                nsp_acc=eval_info["nsp_acc"].item(),
+                                nsp_gvn=eval_batch["nsp_labels"].mean().item())
                 
     return state
 
@@ -271,7 +273,7 @@ if __name__ == "__main__":
     jax.config.update("jax_debug_nans", True)
     
     model_def = BertWithHeads
-    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE-0625-1317"
+    vae_path = Path(BASE_DIR["save"]) / "BERTAP_VAE_MAZE-0710-1442"
     
     log_interval = 20
     save_interval = 2000
@@ -288,15 +290,15 @@ if __name__ == "__main__":
                  "n_layers": 4,
                  "ff_dim": 256 * 4,
                  "causal": False,
-                 "nsp_weight": 0.25,
-                 "use_nsp": True}
+                 "nsp_weight": 0.0,
+                 "use_nsp": False}
     
     kwargs = {
-        "model": {"modify_prob": 0.8, "mask_prob": 0.8, "random_prob": 0.1,
+        "model": {"modify_prob": 0.45, "mask_prob": 0.8, "random_prob": 0.1,
                   "n_special_tokens": 3, "vae_path": vae_path,
                   **structure},
         "dataset": {},
-        "train": {"scheduler_name": "one_cycle", "learning_rate": 8e-3},
+        "train": {"scheduler_name": "one_cycle", "learning_rate": 8e-3, "exp_name": "BERTAP_MLM_MAZE"},
         "loader_size": loader_size
     }
     

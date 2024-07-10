@@ -170,14 +170,19 @@ class MLMDataCollator:
     ) -> Dict[str, np.ndarray]:
         
         x_enc1 = self.tokenizer.apply(self.params, **batch1, train=False, method=self.tokenizer.encode)
-        x_enc2 = self.tokenizer.apply(self.params, **batch2, train=False, method=self.tokenizer.encode)
         _, vq_info1 = self.tokenizer.apply(self.params, x_enc1, train=False, method=self.tokenizer.quantize)
-        _, vq_info2 = self.tokenizer.apply(self.params, x_enc2, train=False, method=self.tokenizer.quantize)
-
         ids1 = vq_info1["indices"]
-        ids2 = vq_info2["indices"]
-
+        
         batch_size = ids1.shape[0]
+        
+        if self.configs.use_nsp:
+            x_enc2 = self.tokenizer.apply(self.params, **batch2, train=False, method=self.tokenizer.encode)
+            _, vq_info2 = self.tokenizer.apply(self.params, x_enc2, train=False, method=self.tokenizer.quantize)
+            ids2 = vq_info2["indices"]
+        else:
+            x_enc2 = jp.empty((batch_size, 0, 0), dtype="f4")
+            ids2 = jp.empty((batch_size, 0), dtype="i4")
+
         input_ids = jp.concatenate([jp.full((batch_size, 1), self.configs.cls_token), ids1,
                                     jp.full((batch_size, 1), self.configs.sep_token), ids2], axis=1)
 

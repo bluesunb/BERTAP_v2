@@ -18,7 +18,7 @@ from src.datasets import AntMLMDataLoader, AntNormalizer, make_env
 from src.utils.train_state import TrainState
 from src.utils.logging_utils import Logger, compare_recons, TabularLogger
 from src.utils.context import make_rngs, save_state
-from src.scripts.prior_prepare_copy import prepare_config_dataset, prepare_states
+from src.scripts.tap_prior_prepare import prepare_config_dataset, prepare_states
 from src.scripts.batch_samplers import gpt_batch_sampler, GPTDataCollator
 
 import wandb
