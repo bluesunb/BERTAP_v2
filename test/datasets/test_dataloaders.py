@@ -106,4 +106,5 @@ def dataloader_speed_test():
     
     
 if __name__ == "__main__":
-    ant_mlm_dataloader_validity_test()
+    # ant_mlm_dataloader_validity_test()
+    dataloader_speed_test()

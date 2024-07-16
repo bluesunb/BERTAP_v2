@@ -1,7 +1,4 @@
 import pickle
-import flax.jax_utils
-import flax.jax_utils
-import flax.traverse_util
 import numpy as np
 import jax
 import jax.tree_util as jtr

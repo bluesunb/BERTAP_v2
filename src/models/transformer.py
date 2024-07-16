@@ -62,7 +62,7 @@ class TransformerEncoder(nn.Module):
 
     @nn.compact
     def __call__(self, x: jp.ndarray, mask: jp.ndarray = None, train: bool = True):
-        mask = jp.squeeze(mask, axis=-1)
+        # mask = jp.squeeze(mask, axis=-1)
         if mask.ndim - x.ndim < 1:
             attn_mask = nn.make_attention_mask(mask, mask, dtype=x.dtype)
 

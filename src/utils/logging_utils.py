@@ -37,7 +37,7 @@ class FakeRun:
     def save(self):
         if self.path is not None:
             logs = {'log_dict': self.log_dict, 'steps': self.steps}
-            pickle.dump(self.log_dict, (self.path / 'log_dict.pkl').open('wb'))
+            pickle.dump(self.logs, (self.path / 'log_dict.pkl').open('wb'))
             print(f'Saved logs to {self.path}')
             
     def clear(self):
@@ -53,9 +53,9 @@ class FakeRun:
         
         
 class Logger:
-    def __init__(self, run: Optional[wandb.run] = None):
+    def __init__(self, run: Optional[wandb.run] = None, path: Optional[Path] = None):
         self._is_fake = run is None
-        self.run = run or FakeRun()
+        self.run = run or FakeRun(path)
         
     def log_scalars(self, data: Dict[str, float], step: int):
         self.run.log(data, step)
@@ -71,6 +71,8 @@ class Logger:
         for k, v in data.items():
             if k.endswith("_map") or k.endswith("_img"):
                 self.array_to_img(k, v, step)
+            elif k.endswith("_plot"):
+                self.plot_to_img(k, v, step)
             elif k.endswith("_arr"):
                 self.run.log({k: v if self._is_fake else wandb.Image(v)}, step=step)
             
@@ -156,7 +158,12 @@ def reduce_array(arr: jp.ndarray, reduce: int | Sequence[int] | str = 0):
 
 
 def split_data(data: Dict[str, ArrayLike]):
-    data_types = {k: 0 if isinstance(v, Number) or v.squeeze().ndim == 0 else v.squeeze().ndim for k, v in data.items()}
+    def verify_type(v):
+        if isinstance(v, Number) or (isinstance(v, jax.typing.ArrayLike) and v.squeeze().ndim == 0):
+            return 0
+        return 1
+    # data_types = {k: 0 if isinstance(v, Number) or v.squeeze().ndim == 0 else v.squeeze().ndim for k, v in data.items()}
+    data_types = {k: verify_type(v) for k, v in data.items()}
     scalar_data = {k: float(v) for k, v in data.items() if data_types[k] == 0}
     array_data = {k: v for k, v in data.items() if data_types[k] > 0}
     return scalar_data, array_data
