@@ -11,6 +11,11 @@ from transformers import FlaxBertForMaskedLM
 init_normal = nn.initializers.normal(stddev=0.02)
 init_const = nn.initializers.constant(0.0)
 
+def split(x: jp.ndarray, ids: jax.typing.ArrayLike, axis: int = 0):
+    ids = jp.cumsum(ids, dtype=jp.int32)
+    return jp.split(x, ids[:-1], axis=axis)
+
+
 class PositionalEmbed(nn.Module):
     emb_dim: int
     max_len: int = None
@@ -52,7 +57,11 @@ class SlotEncoder(nn.Module):
                                    config.attn_pdrop, 
                                    config.resid_pdrop)(x, mask, train=train)
         
-        return x
+        return {
+            "slot_enc": x[:, :config.n_slots],
+            "goal_enc": x[:, config.n_slots:config.n_slots + config.goal_dim],
+            "traj_enc": x[:, config.n_slots + config.goal_dim:]
+        }
     
 
 class SlotDecoder(nn.Module):
@@ -90,15 +99,26 @@ class TrajNet(nn.Module):
     
     def __call__(self, traj_seq: jp.ndarray, mask: jp.ndarray, goal: jp.ndarray, train: bool = None):
         train = nn.merge_param('training', self.training, train)
-        slot_enc = self.encode(traj_seq, mask, goal, train=train)
-        slot_dec = self.decode(slot_enc, train=train)
+        encoded = self.encode(traj_seq, mask, goal, train=train)
+        slot_dec = self.decode(encoded["slot_enc"], train=train)
         return slot_dec
     
-    def encode(self, traj_seq: jp.ndarray, mask: jp.ndarray, goal: jp.ndarray, train: bool = True):
+    def encode(self, traj_seq: jp.ndarray, mask: jp.ndarray, goal: jp.ndarray, train: bool = True) -> dict[str, jp.ndarray]:
         return self.encoder(traj_seq, mask, goal, train=train)
     
-    def decode(self, slot_seq: jp.ndarray, train: bool = True):
+    def decode(self, slot_seq: jp.ndarray, train: bool = True) -> jp.ndarray:
         return self.decoder(slot_seq, train=train)
+    
+    def _input_sample(self):
+        traj_seq = jp.empty((1, self.config.seq_len, self.config.features_dim), dtype=jp.float32)
+        mask = jp.zeros((1, self.config.seq_len), dtype=jp.int32)
+        goal = jp.empty((1, 1, self.config.goal_dim), dtype=jp.float32)
+        
+        return {
+            "traj_seq": traj_seq,
+            "mask": mask,
+            "goal": goal
+        }
 
     
 if __name__ == "__main__":
@@ -110,7 +130,7 @@ if __name__ == "__main__":
                          causal=False)
     
     rng = jax.random.PRNGKey(0)
-    model = TrajNet(config)
+    model = TrajNet(config, training=True)
     traj_seq = jax.random.uniform(rng, (32, config.window_size + config.future_size, config.observation_dim))
     mask = jp.concatenate([jp.zeros((32, config.window_size)), jp.ones((32, config.future_size))], axis=1, dtype=jp.int32)
     goal = traj_seq[:, -1:, :config.goal_dim]

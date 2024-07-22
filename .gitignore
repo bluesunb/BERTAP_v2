@@ -168,3 +168,4 @@ experiment_output/
 logs/
 wandb/
 save/
+version_control.sh

@@ -26,7 +26,8 @@ class ModelConfig(ConfigBase):
     n_dec_layers: int = 1
     use_goal: bool = True
     
-    mask_prob: float = 0.6
+    window_mask_rate: float = 0.6
+    future_mask_rate: float = 0.6
     
     @property
     def seq_len(self) -> int:

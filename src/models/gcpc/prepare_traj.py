@@ -12,13 +12,13 @@ from src.models.gcpc.configs import ModelConfig
 
 
 def prepare_config_dataset(env_name: str,
-                           seq_len: int,
                            batch_size: int,
                            window_size: int = 10,
                            future_size: int = 70,
                            n_epochs: int = 60,
                            **kwargs) -> tuple[AntDataLoader, TotalConfigs]:
     
+    seq_len = window_size + future_size
     data_config = DatasetConfig(env_name=env_name, 
                                 seq_len=seq_len, 
                                 disable_goal=False, 
@@ -63,7 +63,8 @@ def prepare_config_dataset(env_name: str,
         n_dec_layers=1,
         use_goal=True,
         
-        mask_prob=0.6
+        window_mask_rate=0.25,
+        future_mask_rate=1.0,
     )
 
     model_config.update(**kwargs.get("model", {}))
