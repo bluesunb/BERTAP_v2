@@ -93,9 +93,9 @@ class TrajNet(nn.Module):
     config: ModelConfig
     training: bool = None
     
-    def setup(self):
-        self.encoder = SlotEncoder(self.config, name='slot_encoder')
-        self.decoder = SlotDecoder(self.config, name='slot_decoder')
+    # def setup(self):
+        # self.encoder = SlotEncoder(self.config, name='slot_encoder')
+        # self.decoder = SlotDecoder(self.config, name='slot_decoder')
     
     def __call__(self, traj_seq: jp.ndarray, mask: jp.ndarray, goal: jp.ndarray, train: bool = None):
         train = nn.merge_param('training', self.training, train)
@@ -103,11 +103,14 @@ class TrajNet(nn.Module):
         slot_dec = self.decode(encoded["slot_enc"], train=train)
         return slot_dec
     
+    @nn.compact_name_scope
     def encode(self, traj_seq: jp.ndarray, mask: jp.ndarray, goal: jp.ndarray, train: bool = True) -> dict[str, jp.ndarray]:
-        return self.encoder(traj_seq, mask, goal, train=train)
+        # return self.encoder(traj_seq, mask, goal, train=train)
+        return SlotEncoder(self.config, name='slot_encoder')(traj_seq, mask, goal, train=train)
     
     def decode(self, slot_seq: jp.ndarray, train: bool = True) -> jp.ndarray:
-        return self.decoder(slot_seq, train=train)
+        # return self.decoder(slot_seq, train=train)
+        return SlotDecoder(self.config, name='slot_decoder')(slot_seq, train=train)
     
     def _input_sample(self):
         traj_seq = jp.empty((1, self.config.seq_len, self.config.features_dim), dtype=jp.float32)
