@@ -18,7 +18,7 @@ from src.common.configs import TotalConfigs, DatasetConfig, TrainConfig
 from src.datasets import AntDataLoader, AntNormalizer
 from src.utils.ant_viz import GoalReachingMaze
 from src.utils.train_state import TrainState
-from src.utils.logging_utils import Logger, compare_recons
+from src.utils.logging_utils import Logger, compare_recons2
 from src.utils.context import make_rngs, save_state
 
 import wandb
@@ -92,7 +92,7 @@ def train_traj(state: TrainState,
 
     loader_size = dataloader.size // configs.train_config.batch_size
     if kwargs.get("loader_size", 0) > 0:
-        loader_size //= kwargs["loader_size"]
+        loader_size = kwargs["loader_size"]
         print("\033[031mLoader size modified!!\033[0m")
 
     total_steps = n_epochs * loader_size
@@ -126,11 +126,13 @@ def train_traj(state: TrainState,
                 eval_recon, eval_info = eval_step_fn(state, eval_batch, device_rng)
                 eval_recon = flax.jax_utils.unreplicate(eval_recon)
                 eval_info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(eval_info, sep='/'))
-
-                compare_recons(
+                
+                eval_recon = {'traj_seq': eval_recon, 'goal': eval_batch['goal']}
+                
+                compare_recons2(
                     logger=logger,
                     env=render_env,
-                    origs=denormalize_fn(jax.device_get(eval_batch['traj_seq'])),
+                    origs=denormalize_fn(jax.device_get(eval_batch)),
                     recons=denormalize_fn(jax.device_get(eval_recon)),
                     goal_dim=configs.model_config.goal_dim,
                     global_step=global_step,
@@ -222,7 +224,8 @@ def main(model_def: type[TrajNet],  # model-config
                        eval_batch=eval_batch,
                        log_interval=log_interval,
                        save_interval=save_interval,
-                       eval_freq=eval_freq)
+                       eval_freq=eval_freq,
+                       **kwargs)
     
     save_state(state, configs.train_config.save_dir / "checkpoint", total_steps)
     state = flax.jax_utils.unreplicate(state)
@@ -244,9 +247,9 @@ if __name__ == "__main__":
     eval_freq = 2
     pmap=True
     use_wandb = False
-    test = False
+    test = True
     
-    loader_size = 1000 if test else 0
+    loader_size = 100 if test else 0
     batch_size = 256 if test else 512 * jax.device_count()
     
     kwargs = {

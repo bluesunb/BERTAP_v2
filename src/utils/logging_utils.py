@@ -240,4 +240,80 @@ def compare_recons(logger: Logger,
         img = get_canvas_image(canvas)
         plt.close(fig)
         logger.log_arrays({"Reconstruction_arr": img}, step=global_step)
-        
+
+
+def compare_recons2(logger: Logger,
+                    env: GoalReachingAnt,
+                    origs: Dict[str, np.ndarray], 
+                    recons: Dict[str, np.ndarray],
+                    global_step: int,
+                    quantized: np.ndarray = None,
+                    goal_conditioned: bool = False,
+                    visualize: bool = False,
+                    path_name: str = None,
+                    goal_dim: int = None):
+    
+    path_name = path_name or 'observations'
+    goal_dim = goal_dim or origs['goals'].shape[-1]
+    
+    n_paths = recons[path_name].shape[0]
+    figsize = np.round(np.array([2, 1]) * (n_paths + 2)).astype(int).tolist()
+    fig, axes = plt.subplots(2, n_paths, figsize=figsize, tight_layout=True)
+    canvas = agg.FigureCanvasAgg(fig)
+    
+    if n_paths == 1:
+        axes = axes[:, None]
+
+    for j in range(n_paths):
+        new_xlim = np.array([np.inf, -np.inf])
+        new_ylim = np.array([np.inf, -np.inf])
+
+        if quantized is not None:
+            title = '\n'.join(' '.join(str(x) for x in quantized[j, i:i+8].astype(int)) for i in range(0, len(quantized[j]), 8))
+            axes[0, j].set_title(title, fontsize=8)
+
+        for i in range(2):
+            ax: plt.Axes = axes[i, j]
+            # paths = origs if i == 0 else recons
+            paths = origs[path_name] if i == 0 else recons[path_name]
+            goals = origs['goals'] if i == 0 else recons['goals']
+            obs_starts = goal_dim
+
+            # goal = paths[j, 0, :4 if hierarchical_goal else 2]
+            goal = goals[j, 0, goal_dim - 2:goal_dim] if goal_conditioned else None
+            pos = paths[j, :, obs_starts: obs_starts + 2]
+            mask = paths[j, :, -1] > 0.5
+
+            c = np.linspace(0, 1, len(pos))
+            ax.scatter(pos[~mask][:, 0], pos[~mask][:, 1], s=10, c=c[~mask], alpha=0.5, zorder=1)   # plot positions
+            if goal_conditioned:
+                ax.scatter(*goal, s=100, c='r', edgecolors='k', marker='*', alpha=0.8, zorder=3)    # plot goal
+
+            tmp_xlim = np.array(ax.get_xlim())
+            tmp_ylim = np.array(ax.get_ylim())
+            new_xlim = np.array([min(new_xlim[0], tmp_xlim[0]), max(new_xlim[1], tmp_xlim[1])])
+            new_ylim = np.array([min(new_ylim[0], tmp_ylim[0]), max(new_ylim[1], tmp_ylim[1])])
+
+            env.draw(ax)
+            x_lim = np.array(ax.get_xlim())
+            y_lim = np.array(ax.get_ylim())
+            u_x = (x_lim[1] - x_lim[0]) / 8
+            u_y = (y_lim[1] - y_lim[0]) / 8
+
+            new_xlim = (new_xlim - x_lim[0]) / u_x
+            new_ylim = (new_ylim - y_lim[0]) / u_y
+            new_xlim = np.array([np.floor(new_xlim[0]), np.ceil(new_xlim[1])]) * u_x + x_lim[0]
+            new_ylim = np.array([np.floor(new_ylim[0]), np.ceil(new_ylim[1])]) * u_y + y_lim[0]
+
+        for i in range(2):
+            axes[i, j].set_xlim(new_xlim)
+            axes[i, j].set_ylim(new_ylim)
+
+    plt.tight_layout()
+    if visualize:
+        plt.show(block=True)
+        plt.close(fig)
+    else:
+        img = get_canvas_image(canvas)
+        plt.close(fig)
+        logger.log_arrays({"Reconstruction_arr": img}, step=global_step)

@@ -25,15 +25,16 @@ def gcpc_batch_sampler(
     normalizer = Normalizer(loader.dataset, keys=["goals", "observations", "actions"])
     
     def denormalize_fn(batch: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
-        traj_seq = batch["traj_seq"]
+        traj_seq = batch.pop("traj_seq", None)
+        if 'traj_seq' is not None:
+            denorm_keys = ["observations", "actions"] if model_config.state_action else ["observations"]
+            splits = [loader.obs_dim, loader.act_dim] if model_config.state_action else [loader.obs_dim]
+            splits = np.cumsum([0] + splits)
+            splits = [(splits[i], splits[i+1]) for i in range(len(splits) - 1)]
+            traj_seq = normalizer.denormalize_concat(traj_seq, keys=denorm_keys, splits=splits)
         
-        splits = [loader.obs_dim, loader.action_dim]
-        splits = np.cumsum([0] + splits)
-        splits = [(splits[i], splits[i+1]) for i in range(len(splits) - 1)]
-        
-        traj_seq = normalizer.denormalize_concat(traj_seq, keys=["observations", "actions"], splits=splits)
-        batch["traj_seq"] = traj_seq
         batch = normalizer.denormalize(batch)
+        batch["traj_seq"] = traj_seq
         return batch
     
     def sample_fn(pmap: bool = False, **sample_kwargs) -> Dict[str, np.ndarray]:
@@ -41,8 +42,9 @@ def gcpc_batch_sampler(
         if normalize:
             batch = normalizer.normalize(batch)
 
-        window_mask = np.random.rand(batch_size, window_size) > model_config.window_mask_rate
-        future_mask = np.random.rand(batch_size, future_size) > model_config.future_mask_rate
+        bs = batch['observations'].shape[0]
+        window_mask = np.random.rand(bs, window_size) > model_config.window_mask_rate
+        future_mask = np.random.rand(bs, future_size) > model_config.future_mask_rate
         mask = np.concatenate([window_mask, future_mask], axis=1)
         batch = {"traj_seq": batch["observations"] if not model_config.state_action else \
                     np.concatenate([batch["observations"], batch["actions"]], axis=-1), 

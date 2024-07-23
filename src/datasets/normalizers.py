@@ -32,21 +32,19 @@ class Normalizer:
             denormalized_data[key] = denormalized_data[key] * self.std[key] + self.mean[key]
         return denormalized_data
     
-    def normalize_tuple(self, batch: NamedTuple, keys: Sequence[str]) -> NamedTuple:
-        normalized_data = {}
-        batch_class = batch.__class__
-        keys = (keys or batch._fields) & self.keys
-        for key in keys:
-            normalized_data[key] = (getattr(batch, key) - self.mean[key]) / self.std[key]
-        return batch_class(**normalized_data)
+    def normalize_tuple(self, *features: tuple[np.ndarray], keys: Sequence[str]) -> tuple[np.ndarray]:
+        normalized_data = []
+        keys = keys & self.keys
+        for key, data in zip(keys, features):
+            normalized_data.append(data - self.mean[key]) / self.std[key]
+        return tuple(normalized_data)
     
-    def denormalize_tuple(self, batch: NamedTuple, keys: Sequence[str]) -> NamedTuple:
-        denormalized_data = {}
-        batch_class = batch.__class__
-        keys = (keys or batch._fields) & self.keys
+    def denormalize_tuple(self, *features: tuple[np.ndarray], keys: Sequence[str]) -> tuple[np.ndarray]:
+        denormalized_data = []
+        keys = keys & self.keys
         for key in keys:
-            denormalized_data[key] = getattr(batch, key) * self.std[key] + self.mean[key]
-        return batch_class(**denormalized_data)
+            denormalized_data.append(features[key] * self.std[key] + self.mean[key])
+        return tuple(denormalized_data)
         
     def normalize_concat(self, batch: np.ndarray, keys: Sequence[str], splits: Sequence[tuple[int]]) -> np.ndarray:
         normalized_batch = batch.copy()

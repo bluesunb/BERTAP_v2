@@ -5,8 +5,6 @@ import flax.linen as nn
 from src.models.gcpc.configs import ModelConfig
 from src.models.transformer import TransformerEncoder
 
-from transformers import FlaxBertForMaskedLM
-
 
 init_normal = nn.initializers.normal(stddev=0.02)
 init_const = nn.initializers.constant(0.0)
@@ -108,6 +106,7 @@ class TrajNet(nn.Module):
         # return self.encoder(traj_seq, mask, goal, train=train)
         return SlotEncoder(self.config, name='slot_encoder')(traj_seq, mask, goal, train=train)
     
+    @nn.compact_name_scope
     def decode(self, slot_seq: jp.ndarray, train: bool = True) -> jp.ndarray:
         # return self.decoder(slot_seq, train=train)
         return SlotDecoder(self.config, name='slot_decoder')(slot_seq, train=train)
