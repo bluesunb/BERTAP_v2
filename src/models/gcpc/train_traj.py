@@ -127,16 +127,17 @@ def train_traj(state: TrainState,
                 eval_recon = flax.jax_utils.unreplicate(eval_recon)
                 eval_info = flax.jax_utils.unreplicate(flax.traverse_util.flatten_dict(eval_info, sep='/'))
                 
-                eval_recon = {'traj_seq': eval_recon, 'goal': eval_batch['goal']}
+                eval_recon = {'traj_seq': eval_recon, 'goals': eval_batch['goals']}
                 
                 compare_recons2(
                     logger=logger,
                     env=render_env,
                     origs=denormalize_fn(jax.device_get(eval_batch)),
                     recons=denormalize_fn(jax.device_get(eval_recon)),
-                    goal_dim=configs.model_config.goal_dim,
                     global_step=global_step,
-                    goal_conditioned=True
+                    goal_conditioned=True,
+                    visualize=True,
+                    path_name="traj_seq"
                 )
 
                 logger.log(eval_info, global_step, prefix="Eval")
@@ -244,7 +245,7 @@ if __name__ == "__main__":
     
     log_interval = 20
     save_interval = 2000
-    eval_freq = 2
+    eval_freq = 100
     pmap=True
     use_wandb = False
     test = True

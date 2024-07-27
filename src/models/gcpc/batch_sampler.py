@@ -26,7 +26,7 @@ def gcpc_batch_sampler(
     
     def denormalize_fn(batch: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
         traj_seq = batch.pop("traj_seq", None)
-        if 'traj_seq' is not None:
+        if traj_seq is not None:
             denorm_keys = ["observations", "actions"] if model_config.state_action else ["observations"]
             splits = [loader.obs_dim, loader.act_dim] if model_config.state_action else [loader.obs_dim]
             splits = np.cumsum([0] + splits)
@@ -48,7 +48,7 @@ def gcpc_batch_sampler(
         mask = np.concatenate([window_mask, future_mask], axis=1)
         batch = {"traj_seq": batch["observations"] if not model_config.state_action else \
                     np.concatenate([batch["observations"], batch["actions"]], axis=-1), 
-                 "goal": batch["goals"][:, :1],
+                 "goals": batch["goals"][:, :1],
                  "mask": mask, 
                  "pad": 1- batch["dones_float"]}
 

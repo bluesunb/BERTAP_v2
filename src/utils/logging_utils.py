@@ -277,15 +277,15 @@ def compare_recons2(logger: Logger,
             # paths = origs if i == 0 else recons
             paths = origs[path_name] if i == 0 else recons[path_name]
             goals = origs['goals'] if i == 0 else recons['goals']
-            obs_starts = goal_dim
 
             # goal = paths[j, 0, :4 if hierarchical_goal else 2]
-            goal = goals[j, 0, goal_dim - 2:goal_dim] if goal_conditioned else None
-            pos = paths[j, :, obs_starts: obs_starts + 2]
-            mask = paths[j, :, -1] > 0.5
+            goal = goals[j, 0, :2] if goal_conditioned else None
+            pos = paths[j, :, :2]
+            mask = origs['mask'][j, :] > 0.5
 
             c = np.linspace(0, 1, len(pos))
-            ax.scatter(pos[~mask][:, 0], pos[~mask][:, 1], s=10, c=c[~mask], alpha=0.5, zorder=1)   # plot positions
+            # ax.scatter(pos[~mask][:, 0], pos[~mask][:, 1], s=10, c=c[~mask], alpha=0.5, zorder=1)   # plot positions
+            ax.scatter(pos[:, 0], pos[:, 1], s=10, c=c, alpha=0.5, zorder=1)   # plot positions
             if goal_conditioned:
                 ax.scatter(*goal, s=100, c='r', edgecolors='k', marker='*', alpha=0.8, zorder=3)    # plot goal
 

@@ -34,12 +34,12 @@ class SlotEncoder(nn.Module):
     config: ModelConfig
     
     @nn.compact
-    def __call__(self, traj_seq: jp.ndarray, mask: jp.ndarray, goal: jp.ndarray, train: bool = True):
+    def __call__(self, traj_seq: jp.ndarray, mask: jp.ndarray, goals: jp.ndarray, train: bool = True):
         config = self.config
         bs = traj_seq.shape[0]
         
         traj_emb = nn.Dense(config.emb_dim, kernel_init=init_normal, use_bias=False)(traj_seq)
-        goal_emb = nn.Dense(config.emb_dim, kernel_init=init_normal, use_bias=False)(goal)
+        goal_emb = nn.Dense(config.emb_dim, kernel_init=init_normal, use_bias=False)(goals)
         slot_emb = nn.Embed(config.n_slots, config.emb_dim, embedding_init=init_normal)(jp.arange(config.n_slots))
         slot_emb = jp.expand_dims(slot_emb, axis=0).repeat(bs, axis=0)
         
@@ -95,16 +95,16 @@ class TrajNet(nn.Module):
         # self.encoder = SlotEncoder(self.config, name='slot_encoder')
         # self.decoder = SlotDecoder(self.config, name='slot_decoder')
     
-    def __call__(self, traj_seq: jp.ndarray, mask: jp.ndarray, goal: jp.ndarray, train: bool = None):
+    def __call__(self, traj_seq: jp.ndarray, mask: jp.ndarray, goals: jp.ndarray, train: bool = None):
         train = nn.merge_param('training', self.training, train)
-        encoded = self.encode(traj_seq, mask, goal, train=train)
+        encoded = self.encode(traj_seq, mask, goals, train=train)
         slot_dec = self.decode(encoded["slot_enc"], train=train)
         return slot_dec
     
     @nn.compact_name_scope
-    def encode(self, traj_seq: jp.ndarray, mask: jp.ndarray, goal: jp.ndarray, train: bool = True) -> dict[str, jp.ndarray]:
+    def encode(self, traj_seq: jp.ndarray, mask: jp.ndarray, goals: jp.ndarray, train: bool = True) -> dict[str, jp.ndarray]:
         # return self.encoder(traj_seq, mask, goal, train=train)
-        return SlotEncoder(self.config, name='slot_encoder')(traj_seq, mask, goal, train=train)
+        return SlotEncoder(self.config, name='slot_encoder')(traj_seq, mask, goals, train=train)
     
     @nn.compact_name_scope
     def decode(self, slot_seq: jp.ndarray, train: bool = True) -> jp.ndarray:
@@ -119,7 +119,7 @@ class TrajNet(nn.Module):
         return {
             "traj_seq": traj_seq,
             "mask": mask,
-            "goal": goal
+            "goals": goal
         }
 
     
